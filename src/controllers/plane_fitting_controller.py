@@ -19,6 +19,12 @@ class PlaneFittingController(BaseController):
         BaseController.run_worker(self, worker, self.handle_fit_plane_result,
                                   "Loading", "Plane fitting in progress...")
 
+    def clear_planes(self):
+        self.repository.first_plane_indices.clear()
+        self.repository.second_plane_indices.clear()
+        self.repository.first_plane_coefficients.clear()
+        self.repository.second_plane_coefficients.clear()
+
     # endregion
 
     # region Result handlers

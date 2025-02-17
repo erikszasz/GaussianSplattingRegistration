@@ -2,14 +2,16 @@ from PySide6.QtCore import Signal
 
 from controllers.base_controller import BaseController
 from gui.widgets.progress_dialog_factory import ProgressDialogFactory
+from gui.workers.io.qt_gaussian_saver import GaussianSaverUseCorresponding, GaussianSaverNormal
 from gui.workers.io.qt_pc_loaders import PointCloudLoaderInput, PointCloudLoaderGaussian, PointCloudLoaderO3D, \
     PointCloudSaver
 from gui.workers.qt_base_worker import move_worker_to_thread
 from models.data_repository import DataRepository
+from params.io_parameters import PointCloudLoadParams
 
 
 class PointCloudIOController(BaseController):
-    load_point_clouds_signal = Signal(object, object, object, object)
+    load_point_clouds_signal = Signal(PointCloudLoadParams)
 
     def __init__(self, repository: DataRepository):
         super().__init__(repository)
@@ -39,6 +41,18 @@ class PointCloudIOController(BaseController):
         thread.start()
         progress_dialog.exec()
 
+    def merge_point_clouds(self, use_corresponding_pc, pc_path1, pc_path2, merge_path, transformation):
+        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Saving merged point cloud...")
+
+        worker = self.__get_merge_worker(use_corresponding_pc, pc_path1, pc_path2, merge_path, transformation)
+        if worker is None:
+            return
+
+        thread = move_worker_to_thread(self, worker, lambda *args: None, error_handler=self.throw_single_error,
+                                       progress_handler=progress_dialog.setValue)
+        thread.start()
+        progress_dialog.exec()
+
     # endregion
 
     # region Result handlers
@@ -46,7 +60,7 @@ class PointCloudIOController(BaseController):
         error_message = ('Importing one or both of the point clouds failed.\nPlease check that you entered the correct '
                          'path and the point clouds are of the appropriate type!')
         if not pc_first or not pc_second:
-            self.handle_error(error_message)
+            self.throw_single_error(error_message)
 
         self.repository.current_index = 0
 
@@ -60,7 +74,8 @@ class PointCloudIOController(BaseController):
         self.repository.pc_open3d_list_first.append(pc_first)
         self.repository.pc_open3d_list_second.append(pc_second)
 
-        self.load_point_clouds_signal.emit(pc_first, pc_second, original1, original2)
+        pc_loading_params = PointCloudLoadParams(pc_first, pc_second, original1, original2, True)
+        self.load_point_clouds_signal.emit(pc_loading_params)
 
         self.update_ui()
 
@@ -85,3 +100,19 @@ class PointCloudIOController(BaseController):
         self.handle_result_base(cached_result.point_cloud_first, cached_result.point_cloud_first)
 
     # endregion
+
+    def __get_merge_worker(self, use_corresponding_pc, pc_path1, pc_path2, merge_path, transformation):
+        if use_corresponding_pc:
+            return GaussianSaverUseCorresponding(pc_path1, pc_path2, transformation, merge_path)
+
+        if self.repository.pc_gaussian_list_first and self.repository.pc_gaussian_list_second:
+            index = self.repository.current_index
+            pc_first, pc_second = (self.repository.pc_gaussian_list_first[index],
+                                   self.repository.pc_gaussian_list_second[index])
+            return GaussianSaverNormal(pc_first, pc_second, transformation, merge_path)
+
+        self.throw_single_error(
+            "There were no preloaded point clouds found! Load a Gaussian point cloud before merging, "
+            "or check the \"corresponding inputs\" option and select the point clouds you wish to merge."
+        )
+        return None

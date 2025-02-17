@@ -1,12 +1,14 @@
 import numpy as np
 from PySide6.QtWidgets import QWidget
 
+from params.io_parameters import PointCloudLoadParams
+
 
 class ViewerInterface(QWidget):
     def on_embed_button_pressed(self):
         raise NotImplementedError
 
-    def load_point_clouds(self, pc1, pc2, transformation):
+    def load_point_clouds(self, params: PointCloudLoadParams):
         raise NotImplementedError
 
     def get_current_view(self):

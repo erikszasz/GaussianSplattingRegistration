@@ -6,8 +6,10 @@ from models.data_repository import DataRepository
 
 
 class BaseController(QObject):
-    error_signal = Signal(str)
-    ui_update_signal = Signal()
+    signal_single_error = Signal(str)
+    signal_list_error = Signal(list)
+
+    signal_ui_update = Signal()
 
     def __init__(self, repository: DataRepository):
         super().__init__()
@@ -23,8 +25,11 @@ class BaseController(QObject):
         thread.start()
         progress_dialog.exec()
 
-    def handle_error(self, error):
-        self.error_signal.emit(error)
+    def throw_single_error(self, error):
+        self.signal_single_error.emit(error)
+
+    def throw_list_error(self, error):
+        self.signal_list_error.emit(error)
 
     def update_ui(self):
-        self.ui_update_signal.emit()
+        self.signal_ui_update.emit()

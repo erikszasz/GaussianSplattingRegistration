@@ -9,16 +9,15 @@ from controllers.plane_fitting_controller import PlaneFittingController
 from controllers.point_cloud_io_controller import PointCloudIOController
 from gui.tabs.plane_fitting_tab import PlaneFittingTab
 from gui.workers.downsampling.qt_gaussian_mixture import GaussianMixtureWorker
-from gui.workers.downsampling.qt_plane_fitting import PlaneFittingWorker
 from gui.workers.downsampling.qt_plane_merging import PlaneMergingWorker
 from gui.workers.graphics.qt_evaluator import RegistrationEvaluator
 from gui.workers.graphics.qt_rasterizer import RasterizerWorker
-from gui.workers.io.qt_gaussian_saver import GaussianSaverNormal, GaussianSaverUseCorresponding
 from gui.workers.registration.qt_fgr_registrator import FGRRegistrator
 from gui.workers.registration.qt_local_registrator import LocalRegistrator
 from gui.workers.registration.qt_multiscale_registrator import MultiScaleRegistratorVoxel, MultiScaleRegistratorMixture
 from gui.workers.registration.qt_ransac_registrator import RANSACRegistrator
 from models.data_repository import DataRepository
+from params.io_parameters import PointCloudLoadParams
 from src.gui.tabs.evaluation_tab import EvaluationTab
 from src.gui.tabs.gaussian_mixture_tab import GaussianMixtureTab
 from src.gui.tabs.global_registration_tab import GlobalRegistrationTab
@@ -116,9 +115,12 @@ class RegistrationMainWindow(QMainWindow):
         self.visualizer_widget.signal_change_vis_settings_o3d.connect(self.change_visualizer_settings_o3d)
         self.visualizer_widget.signal_change_vis_settings_3dgs.connect(self.change_visualizer_settings_3dgs)
         self.visualizer_widget.signal_change_type.connect(self.visualizer_window.vis_type_changed)
-        self.visualizer_widget.signal_get_current_view.connect(self.get_current_view)
+        self.visualizer_widget.signal_get_current_view.connect(self.set_current_view)
         self.visualizer_widget.signal_pop_visualizer.connect(self.visualizer_window.on_embed_button_pressed)
-        merger_widget.signal_merge_point_clouds.connect(self.merge_point_clouds)
+        merger_widget.signal_merge_point_clouds.connect(
+            lambda *args:
+            self.io_controller.merge_point_clouds(*args, self.transformation_picker.transformation_matrix)
+        )
         rasterizer_tab.signal_rasterize.connect(self.rasterize_gaussians)
 
         tab_widget.addTab(input_tab, "I/O")
@@ -156,7 +158,7 @@ class RegistrationMainWindow(QMainWindow):
         evaluator_widget.signal_evaluate_registration.connect(self.evaluate_registration)
 
         plane_fitting_tab = PlaneFittingTab()
-        plane_fitting_tab.signal_fit_plane.connect(self.fit_planes)
+        plane_fitting_tab.signal_fit_plane.connect(self.plane_fitting_controller.fit_plane)
         plane_fitting_tab.signal_clear_plane.connect(self.clear_planes)
         plane_fitting_tab.signal_merge_plane.connect(self.merge_planes)
 
@@ -170,12 +172,12 @@ class RegistrationMainWindow(QMainWindow):
 
     def register_controller_handlers(self):
         # Point Cloud IO Controller
-        self.io_controller.error_signal.connect(self.create_error_dialog)
-        self.io_controller.ui_update_signal.connect(self.update_ui_after_registration)
+        self.io_controller.signal_single_error.connect(self.handle_error)
+        self.io_controller.signal_ui_update.connect(self.update_ui_after_registration)
         self.io_controller.load_point_clouds_signal.connect(self.load_point_clouds)
 
         # Plane Fitting Controller
-        self.plane_fitting_controller.error_signal.connect(self.create_error_dialog)
+        self.plane_fitting_controller.signal_single_error.connect(self.handle_error)
 
     # Event Handlers
     def update_point_clouds(self, transformation_matrix):
@@ -200,32 +202,8 @@ class RegistrationMainWindow(QMainWindow):
         self.visualizer_window.update_visualizer_settings_3dgs(camera_view.zoom, camera_view.front, camera_view.lookat,
                                                                camera_view.up)
 
-    def get_current_view(self):
-        zoom, front, lookat, up = self.visualizer_window.get_current_view()
-        self.visualizer_widget.set_visualizer_attributes(zoom, front, lookat, up)
-
-    def merge_point_clouds(self, use_corresponding_pc, pc_path1, pc_path2, merge_path):
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Saving merged point cloud...")
-        transformation = self.transformation_picker.transformation_matrix
-        if use_corresponding_pc:
-            worker = GaussianSaverUseCorresponding(pc_path1, pc_path2, transformation, merge_path)
-        elif len(self.repository.pc_gaussian_list_second) != 0 and len(self.repository.pc_gaussian_list_first) != 0:
-            pc_first = self.repository.pc_gaussian_list_first[self.repository.current_index]
-            pc_second = self.repository.pc_gaussian_list_second[self.repository.current_index]
-            worker = GaussianSaverNormal(pc_first, pc_second, transformation, merge_path)
-        else:
-            dialog = QErrorMessage(self)
-            dialog.setModal(True)
-            dialog.setWindowTitle("Error")
-            dialog.showMessage("There were no preloaded point clouds found! Load a Gaussian point cloud before merging,"
-                               "or check the \"corresponding inputs\" option and select the point clouds you wish to "
-                               "merge.")
-            return
-
-        thread = move_worker_to_thread(self, worker, lambda *args: None, error_handler=self.create_error_list_dialog,
-                                       progress_handler=progress_dialog.setValue)
-        thread.start()
-        progress_dialog.exec()
+    def set_current_view(self):
+        self.visualizer_widget.set_visualizer_attributes(*self.visualizer_window.get_current_view())
 
     # Registration
     def do_local_registration(self, registration_type, max_correspondence,
@@ -299,7 +277,7 @@ class RegistrationMainWindow(QMainWindow):
 
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
         thread = move_worker_to_thread(self, worker, self.handle_registration_result_local,
-                                       self.create_error_list_dialog,
+                                       self.handle_error,
                                        progress_dialog.setValue)
         thread.start()
         progress_dialog.exec()
@@ -443,24 +421,8 @@ class RegistrationMainWindow(QMainWindow):
         self.hem_widget.set_slider_enabled(True)
         self.hem_widget.set_slider_to(0)
 
-    def fit_planes(self, plane_count, iterations, distance_threshold, normal_threshold, min_sample_distance):
-        pc1 = self.visualizer_window.o3d_pc1
-        pc2 = self.visualizer_window.o3d_pc2
-
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Plane fitting in progress...")
-        worker = PlaneFittingWorker(pc1, pc2, plane_count, iterations,
-                                    distance_threshold, normal_threshold, min_sample_distance)
-        thread = move_worker_to_thread(self, worker, self.handle_fit_plane_result,
-                                       progress_handler=progress_dialog.setValue)
-
-        thread.start()
-        progress_dialog.exec()
-
     def clear_planes(self):
-        self.repository.first_plane_indices.clear()
-        self.repository.second_plane_indices.clear()
-        self.repository.first_plane_coefficients.clear()
-        self.repository.second_plane_coefficients.clear()
+        self.plane_fitting_controller.clear_planes()
 
         dc1, dc2 = None, None
         if self.visualizer_widget.get_use_debug_color():
@@ -468,28 +430,22 @@ class RegistrationMainWindow(QMainWindow):
 
         self.visualizer_window.update_transform(self.transformation_picker.transformation_matrix, dc1, dc2)
 
+    # TODO: Do we need this?
     def merge_planes(self):
         pc1 = pc2 = None
 
-        if len(self.repository.pc_gaussian_list_first) != 0:
+        if len(self.repository.pc_gaussian_list_first) != 0 and len(self.repository.pc_gaussian_list_second) != 0:
             pc1 = self.repository.pc_gaussian_list_first[0]
-        if len(self.repository.pc_gaussian_list_second) != 0:
             pc2 = self.repository.pc_gaussian_list_second[0]
 
         if not pc1 or not pc2:
-            dialog = QErrorMessage(self)
-            dialog.setModal(True)
-            dialog.setWindowTitle("Error")
-            dialog.showMessage("There are no gaussian point clouds loaded!"
-                               "Please load two point clouds to create Gaussian mixtures.")
+            self.handle_error("There are no gaussian point clouds loaded!"
+                              "Please load two point clouds to create Gaussian mixtures.")
             return
 
         if len(self.repository.first_plane_indices) == 0:
-            dialog = QErrorMessage(self)
-            dialog.setModal(True)
-            dialog.setWindowTitle("Error")
-            dialog.showMessage("There are no fitted planes to merge!"
-                               "Please run plane fitting to merge the inlier points.")
+            self.handle_error("There are no fitted planes to merge!"
+                              "Please run plane fitting to merge the inlier points.")
             return
 
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Merging planes...")
@@ -499,26 +455,6 @@ class RegistrationMainWindow(QMainWindow):
 
         thread.start()
         progress_dialog.exec()
-
-    def handle_fit_plane_result(self, result_data: PlaneFittingWorker.ResultData):
-        self.repository.first_plane_indices.clear()
-        self.repository.second_plane_indices.clear()
-        self.repository.first_plane_coefficients.clear()
-        self.repository.second_plane_coefficients.clear()
-
-        self.repository.first_plane_indices.extend(result_data.indices_pc1)
-        self.repository.second_plane_indices.extend(result_data.indices_pc2)
-        self.repository.first_plane_coefficients.extend(result_data.coefficients_pc1)
-        self.repository.second_plane_coefficients.extend(result_data.coefficients_pc2)
-
-        pc1 = self.repository.pc_gaussian_list_first[0]
-        pc2 = self.repository.pc_gaussian_list_second[0]
-
-        for i in range(len(result_data.coefficients_pc1)):
-            self.visualizer_window.add_plane(result_data.coefficients_pc1[i], pc1.get_xyz[result_data.indices_pc1[i]],
-                                             result_data.indices_pc1[i], [0.1, 0.8, 0.1], 0)
-            self.visualizer_window.add_plane(result_data.coefficients_pc2[i], pc2.get_xyz[result_data.indices_pc2[i]],
-                                             result_data.indices_pc2[i], [0.8, 0.1, 0.1], 1)
 
     def handle_plane_merge_results(self, result_data: PlaneMergingWorker.ResultData):
         self.repository.first_plane_indices.clear()
@@ -538,11 +474,27 @@ class RegistrationMainWindow(QMainWindow):
         if self.visualizer_widget.get_use_debug_color():
             dc1, dc2 = self.visualizer_widget.get_debug_colors()
 
-        self.visualizer_window.load_point_clouds(self.repository.pc_open3d_list_first[index],
-                                                 self.repository.pc_open3d_list_second[index],
-                                                 self.repository.pc_gaussian_list_first[index],
-                                                 self.repository.pc_gaussian_list_second[index],
-                                                 True, self.transformation_picker.transformation_matrix, dc1, dc2)
+        params = PointCloudLoadParams(self.repository.pc_open3d_list_first[index],
+                                      self.repository.pc_open3d_list_second[index],
+                                      self.repository.pc_gaussian_list_first[index],
+                                      self.repository.pc_gaussian_list_second[index],
+                                      False,
+                                      True,
+                                      self.transformation_picker.transformation_matrix,
+                                      dc1,
+                                      dc2)
+
+        self.visualizer_window.load_point_clouds(params)
+
+    def closeEvent(self, event):
+        self.visualizer_window.vis_open3d.close()
+        super(QMainWindow, self).closeEvent(event)
+
+    def handle_error(self, error):
+        if isinstance(error, list):
+            self.create_error_list_dialog(error)
+        else:
+            self.create_error_dialog(str(error))
 
     def create_error_dialog(self, message):
         dialog = QErrorMessage(self)
@@ -550,13 +502,8 @@ class RegistrationMainWindow(QMainWindow):
         dialog.setWindowTitle("Error")
         dialog.showMessage(message)
 
-    def closeEvent(self, event):
-        self.visualizer_window.vis_open3d.close()
-        super(QMainWindow, self).closeEvent(event)
-
-    @staticmethod
-    def create_error_list_dialog(error_list):
-        message_dialog = QMessageBox()
+    def create_error_list_dialog(self, error_list):
+        message_dialog = QMessageBox(self)
         message_dialog.setModal(True)
         message_dialog.setWindowTitle("Error occurred")
         message_dialog.setText("The following error(s) occurred.\n Click \"Show details\" for more information!")
@@ -592,7 +539,6 @@ class RegistrationMainWindow(QMainWindow):
         self.hem_widget.set_slider_enabled(False)
         self.transformation_picker.reset_transformation()
 
-    def load_point_clouds(self, pc_first, pc_second, original1, original2):
-        self.visualizer_window.load_point_clouds(pc_first, pc_second, original1, original2)
-        self.visualizer_window.reset_view_point()
+    def load_point_clouds(self, params: PointCloudLoadParams):
+        self.visualizer_window.load_point_clouds(params)
     # endregion
