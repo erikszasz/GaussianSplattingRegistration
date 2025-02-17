@@ -9,14 +9,15 @@ def fit_plane(point_cloud: o3d.geometry.PointCloud, iterations, threshold, min_s
     return best_plane, best_inliers
 
 
-def fit_multiple_planes(point_cloud: o3d.geometry.PointCloud, plane_count, iterations, threshold, min_sample_distance):
+def fit_multiple_planes(point_cloud: o3d.geometry.PointCloud, plane_count, iterations, threshold, normal_threshold, min_sample_distance):
     points_tensor = torch.from_numpy(np.array(point_cloud.points, dtype=np.float32))
+    normal_tensor = torch.from_numpy(np.array(point_cloud.normals, dtype=np.float32))
     original_indices = torch.arange(points_tensor.shape[0])  # Track original indices
     plane_coefficients = []
     inlier_indices_list = []
 
     for _ in range(plane_count):
-        best_plane, best_inliers = _fit_single_plane(points_tensor, iterations, threshold, min_sample_distance)
+        best_plane, best_inliers = _fit_single_plane(points_tensor, normal_tensor, iterations, threshold, normal_threshold, min_sample_distance)
         if best_plane is not None:
             plane_coefficients.append(best_plane)
             inlier_indices_list.append(original_indices[best_inliers])
@@ -35,7 +36,7 @@ def fit_multiple_planes(point_cloud: o3d.geometry.PointCloud, plane_count, itera
     return plane_coefficients, inlier_indices_list
 
 
-def _fit_single_plane(points_tensor, iterations, threshold, min_sample_distance):
+def _fit_single_plane(points_tensor, normal_tensors, iterations, distance_threshold, normal_threshold, min_sample_distance):
     best_plane = None
     max_inliers_count = 0
     best_inliers = None
@@ -53,13 +54,21 @@ def _fit_single_plane(points_tensor, iterations, threshold, min_sample_distance)
 
         _, distances = project_point_onto_plane(points_tensor, plane)
 
-        inliers_indices = (torch.abs(distances) < threshold).nonzero(as_tuple=True)[0]
-        inliers_count = inliers_indices.size(0)
+        distance_inliers = (torch.abs(distances) < distance_threshold).nonzero(as_tuple=True)[0]
 
-        if inliers_count > max_inliers_count:
-            max_inliers_count = inliers_count
-            best_plane = plane
-            best_inliers = inliers_indices.numpy()
+        if distance_inliers.size(0) > 0:
+            aligned_normals = normal_tensors[distance_inliers]
+            alignment = torch.abs(torch.matmul(aligned_normals, normal))
+
+            normal_inliers = distance_inliers[alignment > normal_threshold]
+            inliers_count = normal_inliers.size(0)
+
+            if inliers_count > max_inliers_count:
+                max_inliers_count = inliers_count
+                best_plane = plane
+                best_inliers = normal_inliers.numpy()
+
+    return best_plane, best_inliers
 
     return best_plane, best_inliers
 

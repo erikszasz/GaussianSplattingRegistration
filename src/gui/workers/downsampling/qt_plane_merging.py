@@ -9,7 +9,6 @@ from src.utils.point_cloud_converter import convert_gs_to_open3d_pc
 
 
 def initialize_mixture_storage(cluster_level):
-    """Initialize storage for mixture data across all levels."""
     return ([[] for _ in range(cluster_level)],  # xyz
             [[] for _ in range(cluster_level)],  # colors
             [[] for _ in range(cluster_level)],  # opacities
@@ -18,15 +17,13 @@ def initialize_mixture_storage(cluster_level):
 
 
 def create_models_from_mixture(xyz_list, colors_list, opacities_list, covariance_list, features_list):
-    """Create Gaussian models and Open3D point clouds from mixture data."""
     gaussian_models = []
     open3d_point_clouds = []
 
     for depth in range(len(xyz_list)):
         if not xyz_list[depth]:
-            continue  # Skip empty depths
+            continue
 
-        # Create Gaussian model
         mixture_model = GaussianMixtureModel(
             xyz_list[depth], colors_list[depth], opacities_list[depth],
             covariance_list[depth], features_list[depth]
@@ -35,7 +32,6 @@ def create_models_from_mixture(xyz_list, colors_list, opacities_list, covariance
         gaussian.from_mixture(mixture_model)
         gaussian.move_to_device("cpu")
 
-        # Convert to Open3D point cloud
         result_open3d = convert_gs_to_open3d_pc(gaussian)
 
         gaussian_models.append(gaussian)
@@ -57,7 +53,7 @@ def process_plane(pc, plane_indices):
         plane_covariance, plane_spherical_harmonics
     )
 
-
+# TODO: Refactor so we have a different util funnctions instead of doing everything here.
 class PlaneMergingWorker(BaseWorker):
     class ResultData:
         def __init__(self, list_gaussian_first, list_gaussian_second,
@@ -132,14 +128,12 @@ class PlaneMergingWorker(BaseWorker):
 
     def process_all_planes(self, pc, plane_indices_list, xyz, colors, opacities, covariance, features,
                            cluster_level, hem_reduction, distance_delta, color_delta, decay_rate):
-        """Process all planes in a point cloud."""
         for indices in plane_indices_list:
             mixture_level = process_plane(pc, indices)
             mixture_models = mixture_bind.MixtureCreator.CreateMixture(
                 cluster_level, hem_reduction, distance_delta, color_delta, decay_rate, mixture_level
             )
 
-            # Append data for each depth
             for depth, mixture in enumerate(mixture_models):
                 xyz_d, colors_d, opacities_d, covariance_d, features_d = mixture_bind.MixtureLevel.CreatePythonLists(
                     mixture)
@@ -170,7 +164,6 @@ class PlaneMergingWorker(BaseWorker):
             covariance[level].extend(first_unselected_covariance)
             features[level].extend(first_unselected_features)
 
-        # Process the first point cloud
         self.process_all_planes(
             pc,
             plane_indices_list,

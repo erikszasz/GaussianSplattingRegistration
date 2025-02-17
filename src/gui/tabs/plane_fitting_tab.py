@@ -8,7 +8,7 @@ from src.gui.widgets.simple_input_field_widget import SimpleInputField
 
 
 class PlaneFittingTab(QWidget):
-    signal_fit_plane = Signal(int, int, float, float)
+    signal_fit_plane = Signal(int, int, float, float, float)
     signal_clear_plane = Signal()
     signal_merge_plane = Signal()
 
@@ -30,7 +30,8 @@ class PlaneFittingTab(QWidget):
         # Plane fitting options
         self.iterations_widget = SimpleInputField("1000", 60, int_validator)
         self.plane_count = SimpleInputField("3", 60, int_validator)
-        self.threshold_widget = SimpleInputField("0.01", 60, double_validator)
+        self.distance_threshold_widget = SimpleInputField("0.01", 60, double_validator)
+        self.normal_threshold_widget = SimpleInputField("0.9", 60, double_validator)
         self.min_distance_widget = SimpleInputField("0.05", 60, double_validator)
         bt_fit_plane = CustomPushButton("Fit plane(s)", 90)
         bt_fit_plane.connect_to_clicked(self.fit_plane_pressed)
@@ -39,7 +40,8 @@ class PlaneFittingTab(QWidget):
         layout_plane_fitting = QFormLayout(plane_fitting_box)
         layout_plane_fitting.addRow("Plane count:", self.plane_count)
         layout_plane_fitting.addRow("Max iterations:", self.iterations_widget)
-        layout_plane_fitting.addRow("Distance threshold:", self.threshold_widget)
+        layout_plane_fitting.addRow("Distance threshold:", self.distance_threshold_widget)
+        layout_plane_fitting.addRow("Distance threshold:", self.normal_threshold_widget)
         layout_plane_fitting.addRow("Min sample distance:", self.min_distance_widget)
         layout_plane_fitting.addRow(bt_fit_plane)
 
@@ -58,6 +60,7 @@ class PlaneFittingTab(QWidget):
     def fit_plane_pressed(self):
         plane_count = int(self.plane_count.text())
         iteration = int(self.iterations_widget.text())
-        threshold = float(self.threshold_widget.text())
+        distance_threshold = float(self.distance_threshold_widget.text())
+        normal_threshold = float(self.normal_threshold_widget.text())
         min_distance = float(self.min_distance_widget.text())
-        self.signal_fit_plane.emit(plane_count, iteration, threshold, min_distance)
+        self.signal_fit_plane.emit(plane_count, iteration, distance_threshold, normal_threshold, min_distance)

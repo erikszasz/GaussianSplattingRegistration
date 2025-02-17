@@ -509,12 +509,13 @@ class RegistrationMainWindow(QMainWindow):
         self.hem_widget.set_slider_enabled(True)
         self.hem_widget.set_slider_to(0)
 
-    def fit_planes(self, plane_count, iterations, threshold, min_sample_distance):
+    def fit_planes(self, plane_count, iterations, distance_threshold, normal_threshold, min_sample_distance):
         pc1 = self.visualizer_window.o3d_pc1
         pc2 = self.visualizer_window.o3d_pc2
 
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Plane fitting in progress...")
-        worker = PlaneFittingWorker(pc1, pc2, plane_count, iterations, threshold, min_sample_distance)
+        worker = PlaneFittingWorker(pc1, pc2, plane_count, iterations,
+                                    distance_threshold, normal_threshold, min_sample_distance)
         thread = move_worker_to_thread(self, worker, self.handle_fit_plane_result,
                                        progress_handler=progress_dialog.setValue)
 
