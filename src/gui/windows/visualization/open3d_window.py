@@ -8,7 +8,7 @@ from PySide6 import QtWidgets, QtCore
 from PySide6.QtWidgets import QMainWindow, QWidget, QScrollBar
 
 from gui.windows.visualization.viewer_interface import ViewerInterface
-from params.io_parameters import PointCloudLoadParams
+from params.io_parameters import PointCloudState
 from src.models.camera import Camera
 from src.utils.graphics_utils import get_focal_from_intrinsics, get_dimension_from_intrinsics
 
@@ -63,7 +63,7 @@ class Open3DWindow(ViewerInterface):
         self.vis.poll_events()
         self.vis.update_renderer()
 
-    def load_point_clouds(self, params: PointCloudLoadParams):
+    def load_point_clouds(self, params: PointCloudState):
         self.pc1 = params.o3d_pc1
         self.pc2 = params.o3d_pc2
         self.pc1_copy = copy.deepcopy(self.pc1)

@@ -17,7 +17,7 @@ from gui.workers.registration.qt_local_registrator import LocalRegistrator
 from gui.workers.registration.qt_multiscale_registrator import MultiScaleRegistratorVoxel, MultiScaleRegistratorMixture
 from gui.workers.registration.qt_ransac_registrator import RANSACRegistrator
 from models.data_repository import DataRepository
-from params.io_parameters import PointCloudLoadParams
+from params.io_parameters import PointCloudState
 from src.gui.tabs.evaluation_tab import EvaluationTab
 from src.gui.tabs.gaussian_mixture_tab import GaussianMixtureTab
 from src.gui.tabs.global_registration_tab import GlobalRegistrationTab
@@ -474,15 +474,15 @@ class RegistrationMainWindow(QMainWindow):
         if self.visualizer_widget.get_use_debug_color():
             dc1, dc2 = self.visualizer_widget.get_debug_colors()
 
-        params = PointCloudLoadParams(self.repository.pc_open3d_list_first[index],
-                                      self.repository.pc_open3d_list_second[index],
-                                      self.repository.pc_gaussian_list_first[index],
-                                      self.repository.pc_gaussian_list_second[index],
-                                      False,
-                                      True,
-                                      self.transformation_picker.transformation_matrix,
-                                      dc1,
-                                      dc2)
+        params = PointCloudState(self.repository.pc_open3d_list_first[index],
+                                 self.repository.pc_open3d_list_second[index],
+                                 self.repository.pc_gaussian_list_first[index],
+                                 self.repository.pc_gaussian_list_second[index],
+                                 False,
+                                 True,
+                                 self.transformation_picker.transformation_matrix,
+                                 dc1,
+                                 dc2)
 
         self.visualizer_window.load_point_clouds(params)
 
@@ -539,6 +539,6 @@ class RegistrationMainWindow(QMainWindow):
         self.hem_widget.set_slider_enabled(False)
         self.transformation_picker.reset_transformation()
 
-    def load_point_clouds(self, params: PointCloudLoadParams):
+    def load_point_clouds(self, params: PointCloudState):
         self.visualizer_window.load_point_clouds(params)
     # endregion

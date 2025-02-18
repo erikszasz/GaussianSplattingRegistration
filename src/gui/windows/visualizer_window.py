@@ -3,7 +3,7 @@ from PySide6 import QtWidgets
 from PySide6.QtWidgets import QWidget, QStackedWidget
 import open3d as o3d
 
-from params.io_parameters import PointCloudLoadParams
+from params.io_parameters import PointCloudState
 from src.gui.windows.visualization.rasterization_window import GaussianSplatWindow
 from src.gui.windows.visualization.open3d_window import Open3DWindow
 from utils.plane_fitting_util import get_o3d_plane
@@ -40,7 +40,7 @@ class VisualizerWindow(QWidget):
 
         return self.vis_3dgs.get_camera_model()
 
-    def load_point_clouds(self, params: PointCloudLoadParams):
+    def load_point_clouds(self, params: PointCloudState):
         self.o3d_pc1 = self.o3d_pc1
         self.o3d_pc2 = self.o3d_pc2
         self.gauss_pc2 = self.gauss_pc2

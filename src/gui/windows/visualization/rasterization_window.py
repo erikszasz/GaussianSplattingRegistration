@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QVBoxLayout, QGraphicsView, QGraphicsScene, QGraph
 
 from gui.windows.visualization.fx.temporal_anit_aliasing import TemporalAntiAliasing
 from gui.windows.visualization.viewer_interface import ViewerInterface
-from params.io_parameters import PointCloudLoadParams
+from params.io_parameters import PointCloudState
 from src.models.gaussian_model import GaussianModel
 from src.utils.rasterization_util import rasterize_image, get_pixmap_from_tensor
 
@@ -232,7 +232,7 @@ class GaussianSplatWindow(ViewerInterface):
 
         self.point_cloud_merged = GaussianModel.get_merged_gaussian_point_clouds(self.pc1, self.pc2, transformation)
 
-    def load_point_clouds(self, params: PointCloudLoadParams):
+    def load_point_clouds(self, params: PointCloudState):
         if self.point_cloud_merged is not None:
             self.point_cloud_merged.move_to_device("cpu")
             del self.point_cloud_merged

@@ -7,44 +7,45 @@ from gui.workers.io.qt_pc_loaders import PointCloudLoaderInput, PointCloudLoader
     PointCloudSaver
 from gui.workers.qt_base_worker import move_worker_to_thread
 from models.data_repository import DataRepository
-from params.io_parameters import PointCloudLoadParams
+from params.io_parameters import PointCloudState, LoadRequestParams, SaveRequestParams
 
 
 class PointCloudIOController(BaseController):
-    load_point_clouds_signal = Signal(PointCloudLoadParams)
+    load_point_clouds_signal = Signal(PointCloudState)
 
     def __init__(self, repository: DataRepository):
         super().__init__(repository)
 
     # region Event handlers
-    def handle_sparse_load(self, sparse_path_first, sparse_path_second):
+    def handle_sparse_load(self, params: LoadRequestParams):
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Loading point clouds...")
-        worker = PointCloudLoaderInput(sparse_path_first, sparse_path_second)
+        worker = PointCloudLoaderInput(params.first_path, params.second_path)
         thread = move_worker_to_thread(self, worker, self.handle_result_sparse,
                                        progress_handler=progress_dialog.setValue)
         thread.start()
         progress_dialog.exec()
 
-    def handle_gaussian_load(self, gaussian_path_first, gaussian_path_second, save_o3d_pc):
+    def handle_gaussian_load(self, params: LoadRequestParams):
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Loading point clouds...")
-        worker = PointCloudLoaderGaussian(gaussian_path_first, gaussian_path_second)
-        thread = move_worker_to_thread(self, worker, lambda result: self.handle_result_gaussian(result, save_o3d_pc),
+        worker = PointCloudLoaderGaussian(params.first_path, params.second_path)
+        thread = move_worker_to_thread(self, worker,
+                                       lambda result: self.handle_result_gaussian(result, params.save_converted),
                                        progress_handler=progress_dialog.setValue)
         thread.start()
         progress_dialog.exec()
 
-    def handle_cached_load(self, cached_path_first, cached_path_second):
+    def handle_cached_load(self, params: LoadRequestParams):
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Loading point clouds...")
-        worker = PointCloudLoaderO3D(cached_path_first, cached_path_second)
+        worker = PointCloudLoaderO3D(params.first_path, params.second_path)
         thread = move_worker_to_thread(self, worker, self.handle_result_cached,
                                        progress_handler=progress_dialog.setValue)
         thread.start()
         progress_dialog.exec()
 
-    def merge_point_clouds(self, use_corresponding_pc, pc_path1, pc_path2, merge_path, transformation):
+    def merge_point_clouds(self, params: SaveRequestParams):
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Saving merged point cloud...")
 
-        worker = self.__get_merge_worker(use_corresponding_pc, pc_path1, pc_path2, merge_path, transformation)
+        worker = self.__get_merge_worker(params)
         if worker is None:
             return
 
@@ -74,15 +75,15 @@ class PointCloudIOController(BaseController):
         self.repository.pc_open3d_list_first.append(pc_first)
         self.repository.pc_open3d_list_second.append(pc_second)
 
-        pc_loading_params = PointCloudLoadParams(pc_first, pc_second, original1, original2, True)
+        pc_loading_params = PointCloudState(pc_first, pc_second, original1, original2, True)
         self.load_point_clouds_signal.emit(pc_loading_params)
 
         self.update_ui()
 
-    def handle_result_sparse(self, sparse_result):
+    def handle_result_sparse(self, sparse_result: PointCloudLoaderInput.ResultData):
         self.handle_result_base(sparse_result.point_cloud_first, sparse_result.point_cloud_second)
 
-    def handle_result_gaussian(self, gaussian_result, save_o3d_point_clouds):
+    def handle_result_gaussian(self, gaussian_result: PointCloudLoaderGaussian.ResultData, save_o3d_point_clouds):
         self.handle_result_base(gaussian_result.o3d_point_cloud_first, gaussian_result.o3d_point_cloud_second,
                                 gaussian_result.gaussian_point_cloud_first,
                                 gaussian_result.gaussian_point_cloud_second)
@@ -96,20 +97,21 @@ class PointCloudIOController(BaseController):
         thread.start()
         progress_dialog.exec()
 
-    def handle_result_cached(self, cached_result):
+    def handle_result_cached(self, cached_result: PointCloudLoaderO3D.ResultData):
         self.handle_result_base(cached_result.point_cloud_first, cached_result.point_cloud_first)
 
     # endregion
 
-    def __get_merge_worker(self, use_corresponding_pc, pc_path1, pc_path2, merge_path, transformation):
-        if use_corresponding_pc:
-            return GaussianSaverUseCorresponding(pc_path1, pc_path2, transformation, merge_path)
+    def __get_merge_worker(self, params: SaveRequestParams):
+        if params.use_corresponding_pc:
+            return GaussianSaverUseCorresponding(params.first_path, params.second_path,
+                                                 params.transformation_matrix, params.save_path)
 
         if self.repository.pc_gaussian_list_first and self.repository.pc_gaussian_list_second:
             index = self.repository.current_index
             pc_first, pc_second = (self.repository.pc_gaussian_list_first[index],
                                    self.repository.pc_gaussian_list_second[index])
-            return GaussianSaverNormal(pc_first, pc_second, transformation, merge_path)
+            return GaussianSaverNormal(pc_first, pc_second, params.transformation_matrix, params.save_path)
 
         self.throw_single_error(
             "There were no preloaded point clouds found! Load a Gaussian point cloud before merging, "
