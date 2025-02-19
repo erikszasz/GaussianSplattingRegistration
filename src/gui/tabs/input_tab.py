@@ -2,14 +2,15 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QCheckBox, QGroupBox, QFormLayout
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 
+from params.io_parameters import LoadRequestParams
 from src.gui.widgets.custom_push_button import CustomPushButton
 from src.gui.widgets.file_selector_widget import FileSelector
 
 
 class InputTab(QWidget):
-    signal_load_sparse = Signal(str, str)
-    signal_load_gaussian = Signal(str, str, bool)
-    signal_load_cached = Signal(str, str)
+    signal_load_sparse = Signal(LoadRequestParams)
+    signal_load_gaussian = Signal(LoadRequestParams)
+    signal_load_cached = Signal(LoadRequestParams)
 
     def __init__(self):
         super().__init__()
@@ -61,10 +62,13 @@ class InputTab(QWidget):
         layout_main.addWidget(input_group_widget)
         layout_main.addStretch()
 
-        bt_sparse.connect_to_clicked(lambda: self.signal_load_sparse.emit(self.fs_input1.file_path,
-                                                                          self.fs_input2.file_path))
-        bt_cached.connect_to_clicked(lambda: self.signal_load_cached.emit(self.fs_cache1.file_path,
-                                                                          self.fs_cache2.file_path))
-        bt_gaussian.connect_to_clicked(lambda: self.signal_load_gaussian.emit(self.fs_pc1.file_path,
-                                                                              self.fs_pc2.file_path,
-                                                                              checkbox_cache.isChecked()))
+        bt_sparse.connect_to_clicked(lambda: self.signal_load_sparse.
+                                     emit(LoadRequestParams(self.fs_input1.file_path,
+                                                            self.fs_input2.file_path)))
+        bt_cached.connect_to_clicked(lambda: self.signal_load_cached
+                                     .emit(LoadRequestParams(self.fs_cache1.file_path,
+                                                             self.fs_cache2.file_path)))
+        bt_gaussian.connect_to_clicked(lambda: self.signal_load_gaussian
+                                       .emit(LoadRequestParams(self.fs_pc1.file_path,
+                                                               self.fs_pc2.file_path,
+                                                               checkbox_cache.isChecked())))

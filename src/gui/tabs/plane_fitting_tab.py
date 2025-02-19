@@ -3,12 +3,13 @@ from PySide6.QtGui import QIntValidator, QDoubleValidator
 from PySide6.QtGui import QIntValidator, QDoubleValidator
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGroupBox, QFormLayout
 
+from params.plane_fitting_params import PlaneFittingParams
 from src.gui.widgets.custom_push_button import CustomPushButton
 from src.gui.widgets.simple_input_field_widget import SimpleInputField
 
 
 class PlaneFittingTab(QWidget):
-    signal_fit_plane = Signal(int, int, float, float, float)
+    signal_fit_plane = Signal(PlaneFittingParams)
     signal_clear_plane = Signal()
     signal_merge_plane = Signal()
 
@@ -63,4 +64,5 @@ class PlaneFittingTab(QWidget):
         distance_threshold = float(self.distance_threshold_widget.text())
         normal_threshold = float(self.normal_threshold_widget.text())
         min_distance = float(self.min_distance_widget.text())
-        self.signal_fit_plane.emit(plane_count, iteration, distance_threshold, normal_threshold, min_distance)
+        self.signal_fit_plane.emit(PlaneFittingParams(plane_count, iteration,
+                                                      distance_threshold, normal_threshold, min_distance))

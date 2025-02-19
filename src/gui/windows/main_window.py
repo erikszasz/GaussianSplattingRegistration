@@ -178,6 +178,7 @@ class RegistrationMainWindow(QMainWindow):
 
         # Plane Fitting Controller
         self.plane_fitting_controller.signal_single_error.connect(self.handle_error)
+        self.plane_fitting_controller.signal_add_planes.connect(self.visualizer_window.add_planes)
 
     # Event Handlers
     def update_point_clouds(self, transformation_matrix):
