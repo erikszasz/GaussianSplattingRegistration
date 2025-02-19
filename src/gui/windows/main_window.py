@@ -173,8 +173,8 @@ class RegistrationMainWindow(QMainWindow):
     def register_controller_handlers(self):
         # Point Cloud IO Controller
         self.io_controller.signal_single_error.connect(self.handle_error)
-        self.io_controller.signal_ui_update.connect(self.update_ui_after_registration)
-        self.io_controller.load_point_clouds_signal.connect(self.load_point_clouds)
+        self.io_controller.signal_ui_update.connect(self.update_ui_after_pc_loaded)
+        self.io_controller.load_point_clouds_signal.connect(self.visualizer_window.load_point_clouds)
 
         # Plane Fitting Controller
         self.plane_fitting_controller.signal_single_error.connect(self.handle_error)
@@ -535,11 +535,8 @@ class RegistrationMainWindow(QMainWindow):
         message_dialog.exec()
 
     # region UI updates
-    def update_ui_after_registration(self):
+    def update_ui_after_pc_loaded(self):
         self.hem_widget.set_slider_range(0)
         self.hem_widget.set_slider_enabled(False)
         self.transformation_picker.reset_transformation()
-
-    def load_point_clouds(self, params: PointCloudState):
-        self.visualizer_window.load_point_clouds(params)
     # endregion
