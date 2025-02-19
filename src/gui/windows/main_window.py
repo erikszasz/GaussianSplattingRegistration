@@ -1,21 +1,17 @@
 import math
 
-import numpy as np
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QSplitter, QGroupBox, \
     QTabWidget, QErrorMessage, QMessageBox, QSizePolicy
 
 from controllers.plane_fitting_controller import PlaneFittingController
 from controllers.point_cloud_io_controller import PointCloudIOController
+from controllers.registration_controller import RegistrationController
 from gui.tabs.plane_fitting_tab import PlaneFittingTab
 from gui.workers.downsampling.qt_gaussian_mixture import GaussianMixtureWorker
-from gui.workers.downsampling.qt_plane_merging import PlaneMergingWorker
+from gui.workers.downsampling.qt_plane_merging import PlaneInlierMergingWorker
 from gui.workers.graphics.qt_evaluator import RegistrationEvaluator
 from gui.workers.graphics.qt_rasterizer import RasterizerWorker
-from gui.workers.registration.qt_fgr_registrator import FGRRegistrator
-from gui.workers.registration.qt_local_registrator import LocalRegistrator
-from gui.workers.registration.qt_multiscale_registrator import MultiScaleRegistratorVoxel, MultiScaleRegistratorMixture
-from gui.workers.registration.qt_ransac_registrator import RANSACRegistrator
 from models.data_repository import DataRepository
 from params.io_parameters import PointCloudState
 from src.gui.tabs.evaluation_tab import EvaluationTab
@@ -51,6 +47,7 @@ class RegistrationMainWindow(QMainWindow):
         # Controllers
         self.io_controller = PointCloudIOController(self.repository)
         self.plane_fitting_controller = PlaneFittingController(self.repository)
+        self.registration_controller = RegistrationController(self.repository)
 
         # Tabs for the settings page
         self.visualizer_widget = None
@@ -117,6 +114,7 @@ class RegistrationMainWindow(QMainWindow):
         self.visualizer_widget.signal_change_type.connect(self.visualizer_window.vis_type_changed)
         self.visualizer_widget.signal_get_current_view.connect(self.set_current_view)
         self.visualizer_widget.signal_pop_visualizer.connect(self.visualizer_window.on_embed_button_pressed)
+        # FIXME
         merger_widget.signal_merge_point_clouds.connect(
             lambda *args:
             self.io_controller.merge_point_clouds(*args, self.transformation_picker.transformation_matrix)
@@ -139,15 +137,15 @@ class RegistrationMainWindow(QMainWindow):
         registration_tab = QTabWidget()
 
         local_registration_widget = LocalRegistrationTab()
-        local_registration_widget.signal_do_registration.connect(self.do_local_registration)
+        local_registration_widget.signal_do_registration.connect(self.registration_controller.execute_local_registration)
 
         global_registration_widget = GlobalRegistrationTab()
-        global_registration_widget.signal_do_ransac.connect(self.do_ransac_registration)
-        global_registration_widget.signal_do_fgr.connect(self.do_fgr_registration)
+        global_registration_widget.signal_do_ransac.connect(self.registration_controller.execute_ransac_registration)
+        global_registration_widget.signal_do_fgr.connect(self.registration_controller.execute_fgr_registration)
 
         multi_scale_registration_widget = MultiScaleRegistrationTab()
         multi_scale_registration_widget.signal_do_registration.connect(
-            self.do_multiscale_registration)
+            self.registration_controller.execute_multiscale_registration)
 
         self.hem_widget = GaussianMixtureTab()
         self.hem_widget.signal_create_mixture.connect(self.create_mixture)
@@ -160,7 +158,7 @@ class RegistrationMainWindow(QMainWindow):
         plane_fitting_tab = PlaneFittingTab()
         plane_fitting_tab.signal_fit_plane.connect(self.plane_fitting_controller.fit_plane)
         plane_fitting_tab.signal_clear_plane.connect(self.clear_planes)
-        plane_fitting_tab.signal_merge_plane.connect(self.merge_planes)
+        plane_fitting_tab.signal_merge_plane.connect(self.merge_plane_inliers)
 
         registration_tab.addTab(global_registration_widget, "Global")
         registration_tab.addTab(local_registration_widget, "Local")
@@ -205,103 +203,6 @@ class RegistrationMainWindow(QMainWindow):
 
     def set_current_view(self):
         self.visualizer_widget.set_visualizer_attributes(*self.visualizer_window.get_current_view())
-
-    # Registration
-    def do_local_registration(self, registration_type, max_correspondence,
-                              relative_fitness, relative_rmse, max_iteration, rejection_type, k_value):
-        pc1 = self.visualizer_window.o3d_pc1
-        pc2 = self.visualizer_window.o3d_pc2
-        init_trans = self.transformation_picker.transformation_matrix
-
-        # Create worker for local registration
-        worker = LocalRegistrator(pc1, pc2, init_trans, registration_type, max_correspondence,
-                                  relative_fitness, relative_rmse, max_iteration, rejection_type,
-                                  k_value)
-
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
-        thread = move_worker_to_thread(self, worker, self.handle_registration_result_local,
-                                       progress_handler=progress_dialog.setValue)
-        thread.start()
-        progress_dialog.exec()
-
-    def do_ransac_registration(self, voxel_size, mutual_filter, max_correspondence, estimation_method,
-                               ransac_n, checkers, max_iteration, confidence):
-        pc1 = self.visualizer_window.o3d_pc1
-        pc2 = self.visualizer_window.o3d_pc2
-
-        worker = RANSACRegistrator(pc1, pc2, self.transformation_picker.transformation_matrix,
-                                   voxel_size, mutual_filter, max_correspondence,
-                                   estimation_method, ransac_n, checkers, max_iteration, confidence)
-
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
-        thread = move_worker_to_thread(self, worker, self.handle_registration_result_global,
-                                       progress_handler=progress_dialog.setValue)
-        thread.start()
-        progress_dialog.exec()
-
-    def do_fgr_registration(self, voxel_size, division_factor, use_absolute_scale, decrease_mu, maximum_correspondence,
-                            max_iterations, tuple_scale, max_tuple_count, tuple_test):
-        pc1 = self.visualizer_window.o3d_pc1
-        pc2 = self.visualizer_window.o3d_pc2
-
-        worker = FGRRegistrator(pc1, pc2, self.transformation_picker.transformation_matrix,
-                                voxel_size, division_factor, use_absolute_scale, decrease_mu,
-                                maximum_correspondence,
-                                max_iterations, tuple_scale, max_tuple_count, tuple_test)
-
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
-        thread = move_worker_to_thread(self, worker, self.handle_registration_result_global,
-                                       progress_handler=progress_dialog.setValue)
-        thread.start()
-        progress_dialog.exec()
-
-    def do_multiscale_registration(self, use_corresponding, sparse_first, sparse_second, registration_type,
-                                   relative_fitness, relative_rmse, voxel_values, iter_values, rejection_type,
-                                   k_value, use_mixture):
-
-        if use_mixture:
-            pc1_list = self.repository.pc_open3d_list_first
-            pc2_list = self.repository.pc_open3d_list_second
-            worker = MultiScaleRegistratorMixture(pc1_list, pc2_list, self.transformation_picker.transformation_matrix,
-                                                  use_corresponding, sparse_first, sparse_second,
-                                                  registration_type, relative_fitness,
-                                                  relative_rmse, voxel_values, iter_values,
-                                                  rejection_type, k_value)
-        else:
-            pc1 = self.visualizer_window.o3d_pc1
-            pc2 = self.visualizer_window.o3d_pc2
-            worker = MultiScaleRegistratorVoxel(pc1, pc2, self.transformation_picker.transformation_matrix,
-                                                use_corresponding, sparse_first, sparse_second,
-                                                registration_type, relative_fitness,
-                                                relative_rmse, voxel_values, iter_values,
-                                                rejection_type, k_value)
-
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
-        thread = move_worker_to_thread(self, worker, self.handle_registration_result_local,
-                                       self.handle_error,
-                                       progress_dialog.setValue)
-        thread.start()
-        progress_dialog.exec()
-
-    def handle_registration_result_local(self, resultData: LocalRegistrator.ResultData):
-        self.repository.local_registration_data = resultData.registration_data
-        results = resultData.result
-        self.handle_registration_result_base(results.transformation, results.fitness, results.inlier_rmse)
-
-    def handle_registration_result_global(self, results):
-        transformation_actual = np.dot(results.transformation, self.transformation_picker.transformation_matrix)
-        self.handle_registration_result_base(transformation_actual, results.fitness, results.inlier_rmse)
-
-    def handle_registration_result_base(self, transformation, fitness, inlier_rmse):
-        self.transformation_picker.set_transformation(transformation)
-
-        message_dialog = QMessageBox()
-        message_dialog.setWindowTitle("Successful registration")
-        message_dialog.setText(f"The registration of the point clouds is finished.\n"
-                               f"The transformation will be applied.\n\n"
-                               f"Fitness: {fitness}\n"
-                               f"RMSE: {inlier_rmse}\n")
-        message_dialog.exec()
 
     def rasterize_gaussians(self, width, height, scale, color, fx_supplied, fy_supplied):
         pc1 = self.repository.pc_gaussian_list_first[
@@ -431,8 +332,8 @@ class RegistrationMainWindow(QMainWindow):
 
         self.visualizer_window.update_transform(self.transformation_picker.transformation_matrix, dc1, dc2)
 
-    # TODO: Do we need this?
-    def merge_planes(self):
+    # TODO: Move to merge controller
+    def merge_plane_inliers(self):
         pc1 = pc2 = None
 
         if len(self.repository.pc_gaussian_list_first) != 0 and len(self.repository.pc_gaussian_list_second) != 0:
@@ -449,15 +350,16 @@ class RegistrationMainWindow(QMainWindow):
                               "Please run plane fitting to merge the inlier points.")
             return
 
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Merging planes...")
-        worker = PlaneMergingWorker(pc1, pc2, self.repository.first_plane_indices, self.repository.second_plane_indices)
+        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Plane inlier merging...")
+        worker = PlaneInlierMergingWorker(pc1, pc2, self.repository.first_plane_indices,
+                                          self.repository.second_plane_indices)
         thread = move_worker_to_thread(self, worker, self.handle_plane_merge_results,
                                        progress_handler=progress_dialog.setValue)
 
         thread.start()
         progress_dialog.exec()
 
-    def handle_plane_merge_results(self, result_data: PlaneMergingWorker.ResultData):
+    def handle_plane_merge_results(self, result_data: PlaneInlierMergingWorker.ResultData):
         self.repository.first_plane_indices.clear()
         self.repository.second_plane_indices.clear()
         self.repository.first_plane_coefficients.clear()

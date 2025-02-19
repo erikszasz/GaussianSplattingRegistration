@@ -76,7 +76,7 @@ class PointCloudIOController(BaseController):
         self.repository.pc_open3d_list_second.append(pc_second)
 
         pc_loading_params = PointCloudState(pc_first, pc_second, original1, original2, True)
-        self.load_point_clouds_signal.emit(pc_loading_params)
+        self.load_point_clouds_signal.emit(pc_loading_params)  # FIXME: Move to data repository
 
         self.update_ui()
 

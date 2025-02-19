@@ -54,7 +54,7 @@ def process_plane(pc, plane_indices):
     )
 
 # TODO: Refactor so we have a different util funnctions instead of doing everything here.
-class PlaneMergingWorker(BaseWorker):
+class PlaneInlierMergingWorker(BaseWorker):
     class ResultData:
         def __init__(self, list_gaussian_first, list_gaussian_second,
                      list_open3d_first, list_open3d_second):
@@ -112,7 +112,7 @@ class PlaneMergingWorker(BaseWorker):
                                                                               opacities_second, covariance_second,
                                                                               features_second)
         self.signal_progress.emit(100)
-        self.signal_result.emit(PlaneMergingWorker.ResultData(
+        self.signal_result.emit(PlaneInlierMergingWorker.ResultData(
             list_gaussian_first, list_gaussian_second,
             list_open3d_first, list_open3d_second
         ))
