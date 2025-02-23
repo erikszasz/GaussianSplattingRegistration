@@ -51,7 +51,7 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True):
 
 
 def mse(img1, img2):
-    return (((img1 - img2)) ** 2).view(img1.shape[0], -1).mean(1, keepdim=True)
+    return (((img1 - img2)) ** 2).mean()
 
 
 def psnr(img1, img2):

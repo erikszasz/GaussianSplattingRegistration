@@ -9,6 +9,7 @@ from models.ui_state_repository import UIStateRepository
 class BaseController(QObject):
     signal_single_error = Signal(str)
     signal_list_error = Signal(list)
+    signal_success_message = Signal(str, str, str)
 
     signal_ui_update = Signal()
 

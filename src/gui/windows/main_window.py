@@ -155,7 +155,7 @@ class RegistrationMainWindow(QMainWindow):
 
         evaluator_widget = EvaluationTab()
         evaluator_widget.signal_camera_change.connect(self.visualizer_window.apply_camera_view)
-        evaluator_widget.signal_evaluate_registration.connect(self.evaluate_registration)
+        evaluator_widget.signal_evaluate_registration.connect(self.registration_controller.evaluate_registration)
 
         plane_fitting_tab = PlaneFittingTab()
         plane_fitting_tab.signal_fit_plane.connect(self.plane_fitting_controller.fit_plane)
@@ -178,12 +178,18 @@ class RegistrationMainWindow(QMainWindow):
 
         # Plane Fitting Controller
         self.plane_fitting_controller.signal_single_error.connect(self.handle_error)
+        self.plane_fitting_controller.signal_list_error.connect(self.handle_error)
+
+        # Registration Controller
+        self.registration_controller.signal_single_error.connect(self.handle_error)
+        self.registration_controller.signal_list_error.connect(self.handle_error)
+        self.registration_controller.signal_success_message.connect(self.create_success_dialog)
+
         # TODO: Move elsewhere
         self.data_repository.signal_planes_changed.connect(self.visualizer_window.add_planes)
-
         self.ui_repository.signal_transformation_changed.connect(self.transformation_picker.set_transformation)
 
-    # Event Handlers
+    # region Event Handlers
     def update_point_clouds(self, transformation_matrix):
         dc1 = dc2 = None
         if self.visualizer_widget.get_use_debug_color():
@@ -247,29 +253,6 @@ class RegistrationMainWindow(QMainWindow):
         self.raster_window.setWindowModality(Qt.WindowModality.WindowModal)
         self.raster_window.show()
 
-    def evaluate_registration(self, camera_list, image_path, log_path, color, use_gpu):
-        pc1 = self.data_repository.pc_gaussian_list_first[self.data_repository.current_index]
-        pc2 = self.data_repository.pc_gaussian_list_second[self.data_repository.current_index]
-
-        if not pc1 or not pc2:
-            dialog = QErrorMessage(self)
-            dialog.setModal(True)
-            dialog.setWindowTitle("Error")
-            dialog.showMessage("There are no gaussian point clouds loaded for registration evaluation!"
-                               "\nPlease load two point clouds for registration and evaluation")
-            return
-
-        progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Evaluating registration...")
-        worker = RegistrationEvaluator(pc1, pc2, self.ui_repository.transformation_matrix,
-                                       camera_list, image_path, log_path, color,
-                                       self.data_repository.local_registration_data,
-                                       use_gpu)
-        progress_dialog.canceled.connect(worker.cancel_evaluation)
-        thread = move_worker_to_thread(self, worker, self.handle_evaluation_result,
-                                       progress_handler=progress_dialog.setValue)
-        thread.start()
-        progress_dialog.exec()
-
     def clear_planes(self):
         self.plane_fitting_controller.clear_planes()
 
@@ -325,30 +308,15 @@ class RegistrationMainWindow(QMainWindow):
         message_dialog.setDetailedText("\n".join(error_list))
         message_dialog.exec()
 
-    @staticmethod
-    def handle_evaluation_result(log_object):
-        message_dialog = QMessageBox()
+    def create_success_dialog(self, title, message, detailed_text):
+        message_dialog = QMessageBox(self)
         message_dialog.setModal(True)
-        message_dialog.setWindowTitle("Evaluation finished")
-        message = "The evaluation finished with"
-        if not math.isnan(log_object.psnr):
-            message += " success.\n"
-            message += f"\nMSE:  {log_object.mse}"
-            message += f"\nRMSE: {log_object.rmse}"
-            message += f"\nSSIM: {log_object.ssim}"
-            message += f"\nPSNR: {log_object.psnr}"
-            message += f"\nLPIP: {log_object.lpips}"
-        else:
-            message += " error."
-
-        if log_object.error_list:
-            message += "\nClick \"Show details\" for any potential issues."
-            message_dialog.setDetailedText("\n".join(log_object.error_list))
-
+        message_dialog.setWindowTitle(title)
         message_dialog.setText(message)
+        if detailed_text != "":
+            message_dialog.setDetailedText(detailed_text)
         message_dialog.exec()
 
-    # region UI updates
     def update_ui_after_pc_loaded(self):
         self.hem_widget.set_slider_range(0)
         self.hem_widget.set_slider_enabled(False)
