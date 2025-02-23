@@ -53,7 +53,7 @@ def process_plane(pc, plane_indices):
         plane_covariance, plane_spherical_harmonics
     )
 
-# TODO: Refactor so we have a different util funnctions instead of doing everything here.
+
 class PlaneInlierMergingWorker(BaseWorker):
     class ResultData:
         def __init__(self, list_gaussian_first, list_gaussian_second,
@@ -99,11 +99,13 @@ class PlaneInlierMergingWorker(BaseWorker):
 
         print("Processing planes for the first point cloud.")
         xyz_first, colors_first, opacities_first, covariance_first, features_first = (
-            self.create_mixtures_from_indices(self.gaussian_pc_first, unselected_indices_first, self.first_plane_indices))
+            self.create_mixtures_from_indices(self.gaussian_pc_first, unselected_indices_first,
+                                              self.first_plane_indices))
 
         print("Processing planes for the second point cloud.")
         xyz_second, colors_second, opacities_second, covariance_second, features_second = (
-            self.create_mixtures_from_indices(self.gaussian_pc_second, unselected_indices_second, self.second_plane_indices))
+            self.create_mixtures_from_indices(self.gaussian_pc_second, unselected_indices_second,
+                                              self.second_plane_indices))
 
         print("Creating final Gaussian models.")
         list_gaussian_first, list_open3d_first = create_models_from_mixture(xyz_first, colors_first, opacities_first,

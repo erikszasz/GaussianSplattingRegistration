@@ -5,7 +5,6 @@ from subprocess import Popen, PIPE
 import numpy as np
 import open3d as o3d
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtWidgets import QMainWindow, QWidget, QScrollBar
 
 from gui.windows.visualization.viewer_interface import ViewerInterface
 from params.io_parameters import PointCloudState

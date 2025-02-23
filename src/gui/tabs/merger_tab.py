@@ -75,4 +75,5 @@ class MergeTab(QWidget):
         pc_path2 = self.fs_input2.file_path
         merge_path = self.fs_merge.file_path
         transformation = self.ui_repository.transformation_matrix
-        self.signal_merge_point_clouds.emit(SaveRequestParams(merge_path, transformation, is_checked, pc_path1, pc_path2))
+        self.signal_merge_point_clouds.emit(SaveRequestParams(merge_path, transformation, is_checked,
+                                                              pc_path1, pc_path2))

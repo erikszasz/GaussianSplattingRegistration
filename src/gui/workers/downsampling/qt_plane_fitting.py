@@ -1,5 +1,5 @@
 from gui.workers.qt_base_worker import BaseWorker
-from utils.plane_fitting_util import fit_plane, get_o3d_plane, fit_multiple_planes
+from utils.plane_fitting_util import fit_planes
 
 
 class PlaneFittingWorker(BaseWorker):
@@ -22,14 +22,14 @@ class PlaneFittingWorker(BaseWorker):
 
     def run(self):
         self.signal_progress.emit(0)
-        planes_pc1, indices_pc1 = fit_multiple_planes(self.pc1, self.plane_count, self.iterations,
-                                                      self.distance_threshold, self.normal_threshold,
-                                                      self.min_sample_distance)
+        planes_pc1, indices_pc1 = fit_planes(self.pc1, self.plane_count, self.iterations,
+                                             self.distance_threshold, self.normal_threshold,
+                                             self.min_sample_distance)
 
         self.signal_progress.emit(50)
-        planes_pc2, indices_pc2 = fit_multiple_planes(self.pc2, self.plane_count, self.iterations,
-                                                      self.distance_threshold, self.normal_threshold,
-                                                      self.min_sample_distance)
+        planes_pc2, indices_pc2 = fit_planes(self.pc2, self.plane_count, self.iterations,
+                                             self.distance_threshold, self.normal_threshold,
+                                             self.min_sample_distance)
 
         self.signal_progress.emit(100)
         self.signal_result.emit(PlaneFittingWorker.ResultData(

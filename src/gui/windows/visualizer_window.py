@@ -1,12 +1,10 @@
 import torch
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QWidget, QStackedWidget
-import open3d as o3d
 
 from params.io_parameters import PointCloudState
-from src.gui.windows.visualization.rasterization_window import GaussianSplatWindow
 from src.gui.windows.visualization.open3d_window import Open3DWindow
-from utils.plane_fitting_util import get_o3d_plane
+from src.gui.windows.visualization.rasterization_window import GaussianSplatWindow
 
 
 class VisualizerWindow(QWidget):
