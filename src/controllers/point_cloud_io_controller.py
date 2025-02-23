@@ -7,14 +7,15 @@ from gui.workers.io.qt_pc_loaders import PointCloudLoaderInput, PointCloudLoader
     PointCloudSaver
 from gui.workers.qt_base_worker import move_worker_to_thread
 from models.data_repository import DataRepository
+from models.ui_state_repository import UIStateRepository
 from params.io_parameters import PointCloudState, LoadRequestParams, SaveRequestParams
 
 
 class PointCloudIOController(BaseController):
     load_point_clouds_signal = Signal(PointCloudState)
 
-    def __init__(self, repository: DataRepository):
-        super().__init__(repository)
+    def __init__(self, data_repository: DataRepository, ui_repository: UIStateRepository):
+        super().__init__(data_repository, ui_repository)
 
     # region Event handlers
     def handle_sparse_load(self, params: LoadRequestParams):
@@ -63,20 +64,20 @@ class PointCloudIOController(BaseController):
         if not pc_first or not pc_second:
             self.throw_single_error(error_message)
 
-        self.repository.current_index = 0
+        self.data_repository.current_index = 0
 
-        self.repository.pc_gaussian_list_first.clear()
-        self.repository.pc_gaussian_list_second.clear()
-        self.repository.pc_open3d_list_first.clear()
-        self.repository.pc_open3d_list_second.clear()
+        self.data_repository.pc_gaussian_list_first.clear()
+        self.data_repository.pc_gaussian_list_second.clear()
+        self.data_repository.pc_open3d_list_first.clear()
+        self.data_repository.pc_open3d_list_second.clear()
 
-        self.repository.pc_gaussian_list_first.append(original1)
-        self.repository.pc_gaussian_list_second.append(original2)
-        self.repository.pc_open3d_list_first.append(pc_first)
-        self.repository.pc_open3d_list_second.append(pc_second)
+        self.data_repository.pc_gaussian_list_first.append(original1)
+        self.data_repository.pc_gaussian_list_second.append(original2)
+        self.data_repository.pc_open3d_list_first.append(pc_first)
+        self.data_repository.pc_open3d_list_second.append(pc_second)
 
         pc_loading_params = PointCloudState(pc_first, pc_second, original1, original2, True)
-        self.load_point_clouds_signal.emit(pc_loading_params)  # FIXME: Move to data repository
+        self.load_point_clouds_signal.emit(pc_loading_params)
 
         self.update_ui()
 
@@ -107,10 +108,10 @@ class PointCloudIOController(BaseController):
             return GaussianSaverUseCorresponding(params.first_path, params.second_path,
                                                  params.transformation_matrix, params.save_path)
 
-        if self.repository.pc_gaussian_list_first and self.repository.pc_gaussian_list_second:
-            index = self.repository.current_index
-            pc_first, pc_second = (self.repository.pc_gaussian_list_first[index],
-                                   self.repository.pc_gaussian_list_second[index])
+        if self.data_repository.pc_gaussian_list_first and self.data_repository.pc_gaussian_list_second:
+            index = self.data_repository.current_index
+            pc_first, pc_second = (self.data_repository.pc_gaussian_list_first[index],
+                                   self.data_repository.pc_gaussian_list_second[index])
             return GaussianSaverNormal(pc_first, pc_second, params.transformation_matrix, params.save_path)
 
         self.throw_single_error(

@@ -2,15 +2,19 @@ from PySide6 import QtCore
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QErrorMessage, \
     QFileDialog, QGroupBox, QFormLayout, QHBoxLayout
 
+from models.ui_state_repository import UIStateRepository
+from params.io_parameters import SaveRequestParams
 from src.gui.widgets.custom_push_button import CustomPushButton
 from src.gui.widgets.file_selector_widget import FileSelector
 
 
 class MergeTab(QWidget):
-    signal_merge_point_clouds = QtCore.Signal(bool, str, str, str)
+    signal_merge_point_clouds = QtCore.Signal(SaveRequestParams)
 
-    def __init__(self):
+    def __init__(self, ui_repository: UIStateRepository):
         super().__init__()
+        self.ui_repository = ui_repository
+
         layout = QVBoxLayout(self)
 
         label_title = QLabel("Point cloud merging")
@@ -70,4 +74,5 @@ class MergeTab(QWidget):
         pc_path1 = self.fs_input1.file_path
         pc_path2 = self.fs_input2.file_path
         merge_path = self.fs_merge.file_path
-        self.signal_merge_point_clouds.emit(is_checked, pc_path1, pc_path2, merge_path)
+        transformation = self.ui_repository.transformation_matrix
+        self.signal_merge_point_clouds.emit(SaveRequestParams(merge_path, transformation, is_checked, pc_path1, pc_path2))

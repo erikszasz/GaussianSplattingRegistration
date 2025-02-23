@@ -5,6 +5,7 @@ from PySide6.QtGui import QDoubleValidator, QGuiApplication
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, \
     QGridLayout, QLineEdit
 
+from models.ui_state_repository import UIStateRepository
 from src.gui.widgets.custom_push_button import CustomPushButton
 
 
@@ -52,8 +53,9 @@ class Transformation3DPicker(QWidget):
 
     transformation_matrix_changed = QtCore.Signal(object)
 
-    def __init__(self):
+    def __init__(self, ui_repository: UIStateRepository):
         super().__init__()
+        self.ui_repository = ui_repository
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -84,7 +86,7 @@ class Transformation3DPicker(QWidget):
                 self.cells.append(cell)
 
         button_reset = CustomPushButton("Reset transformation matrix", 90)
-        button_reset.connect_to_clicked(lambda: self.set_transformation(np.eye(4)))
+        button_reset.connect_to_clicked(self.reset_transformation)
 
         button_copy = CustomPushButton("Copy to clipboard", 90)
         button_copy.connect_to_clicked(self.copy_to_clipboard)
@@ -97,8 +99,9 @@ class Transformation3DPicker(QWidget):
 
     def cell_value_changed(self, row, col, value):
         self.transformation_matrix[row, col] = value
-        self.transformation_matrix_changed.emit(self.transformation_matrix)
+        self.ui_repository.transformation_matrix = self.transformation_matrix
 
+    # TODO: I have no idea what this is. Kill it with fire.
     def set_transformation(self, transformation_matrix):
         for cell in self.cells:
             self.transformation_matrix[cell.row][cell.col] = transformation_matrix[cell.row][cell.col]
@@ -109,7 +112,7 @@ class Transformation3DPicker(QWidget):
         self.transformation_matrix_changed.emit(self.transformation_matrix)
 
     def reset_transformation(self):
-        self.set_transformation(np.eye(4))
+        self.ui_repository.transformation_matrix = np.eye(4)  # Should trigger set_transformation indirectly
 
     def copy_to_clipboard(self):
         clipboard = QGuiApplication.clipboard()

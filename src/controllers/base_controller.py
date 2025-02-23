@@ -3,6 +3,7 @@ from PySide6.QtCore import QObject, Signal
 from gui.widgets.progress_dialog_factory import ProgressDialogFactory
 from gui.workers.qt_base_worker import move_worker_to_thread
 from models.data_repository import DataRepository
+from models.ui_state_repository import UIStateRepository
 
 
 class BaseController(QObject):
@@ -11,10 +12,10 @@ class BaseController(QObject):
 
     signal_ui_update = Signal()
 
-    def __init__(self, repository: DataRepository):
+    def __init__(self, data_repository: DataRepository, ui_repository: UIStateRepository):
         super().__init__()
-        self.repository = repository
-        self.visualizer = None
+        self.data_repository = data_repository
+        self.ui_repository = ui_repository
 
     @staticmethod
     def run_worker(parent, worker, result_callback, progress_title, progress_message):
