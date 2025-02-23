@@ -180,7 +180,7 @@ class VisualizerTab(QWidget):
         self.signal_pop_visualizer.emit()
 
     def change_visualizer(self, visualizer_index):
-        if visualizer_index and len(self.parent_window.pc_open3d_list_first) == 0:
+        if visualizer_index and len(self.parent_window.data_repository.pc_open3d_list_first) == 0:
             dialog = QErrorMessage(self)
             dialog.setModal(True)
             dialog.setWindowTitle("Error")

@@ -1,5 +1,5 @@
-import numpy as np
 from PySide6.QtCore import QObject, Signal
+import numpy as np
 
 
 class UIStateRepository(QObject):
@@ -15,5 +15,6 @@ class UIStateRepository(QObject):
 
     @transformation_matrix.setter
     def transformation_matrix(self, matrix):
-        self._transformation_matrix = matrix
-        self.signal_transformation_changed.emit(matrix)
+        if not np.array_equal(self._transformation_matrix, matrix):
+            self._transformation_matrix = matrix
+            self.signal_transformation_changed.emit(matrix)

@@ -1,5 +1,3 @@
-import math
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget, QSplitter, QGroupBox, \
     QTabWidget, QErrorMessage, QMessageBox, QSizePolicy
@@ -9,9 +7,6 @@ from controllers.plane_fitting_controller import PlaneFittingController
 from controllers.point_cloud_io_controller import PointCloudIOController
 from controllers.registration_controller import RegistrationController
 from gui.tabs.plane_fitting_tab import PlaneFittingTab
-from gui.workers.downsampling.qt_gaussian_mixture import GaussianMixtureWorker
-from gui.workers.downsampling.qt_plane_merging import PlaneInlierMergingWorker
-from gui.workers.graphics.qt_evaluator import RegistrationEvaluator
 from gui.workers.graphics.qt_rasterizer import RasterizerWorker
 from models.data_repository import DataRepository
 from models.ui_state_repository import UIStateRepository
@@ -91,6 +86,7 @@ class RegistrationMainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
         self.register_controller_handlers()
+        self.register_repository_handlers()
 
     # GUI setup functions
     def setup_input_group(self, group_input_data):
@@ -112,7 +108,6 @@ class RegistrationMainWindow(QMainWindow):
         input_tab.signal_load_gaussian.connect(self.io_controller.handle_gaussian_load)
         input_tab.signal_load_sparse.connect(self.io_controller.handle_sparse_load)
         input_tab.signal_load_cached.connect(self.io_controller.handle_cached_load)
-        self.transformation_picker.transformation_matrix_changed.connect(self.update_point_clouds)
         self.visualizer_widget.signal_change_vis_settings_o3d.connect(self.change_visualizer_settings_o3d)
         self.visualizer_widget.signal_change_vis_settings_3dgs.connect(self.change_visualizer_settings_3dgs)
         self.visualizer_widget.signal_change_type.connect(self.visualizer_window.vis_type_changed)
@@ -185,9 +180,9 @@ class RegistrationMainWindow(QMainWindow):
         self.registration_controller.signal_list_error.connect(self.handle_error)
         self.registration_controller.signal_success_message.connect(self.create_success_dialog)
 
-        # TODO: Move elsewhere
+    def register_repository_handlers(self):
         self.data_repository.signal_planes_changed.connect(self.visualizer_window.add_planes)
-        self.ui_repository.signal_transformation_changed.connect(self.transformation_picker.set_transformation)
+        self.ui_repository.signal_transformation_changed.connect(self.update_point_clouds)
 
     # region Event Handlers
     def update_point_clouds(self, transformation_matrix):

@@ -12,11 +12,13 @@ class RasterImageViewer(QMainWindow):
         self.scaleFactor = 0.0
 
         self.image_label = QLabel()
+        self.image_label.setContentsMargins(0, 0, 0, 0)
         self.image_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
         self.image_label.setScaledContents(True)
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.scroll_area = QScrollArea()
+        self.scroll_area.setContentsMargins(0, 0, 0, 0)
         self.scroll_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.scroll_area.setWidget(self.image_label)
         self.scroll_area.setVisible(False)
@@ -110,8 +112,8 @@ class RasterImageViewer(QMainWindow):
         width = pixmap.width()
         height = pixmap.height()
 
-        new_width = width + 10
-        new_height = height + 10 + self.viewMenu.height()
+        new_width = width + 12
+        new_height = height + 12 + self.viewMenu.height()
 
         return new_width, new_height
 
