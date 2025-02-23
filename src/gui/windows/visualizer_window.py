@@ -149,6 +149,5 @@ class VisualizerWindow(QWidget):
         if self.vis_stack.currentIndex() != 0:
             return
 
-        for plane in planes:
-            self.vis_open3d.add_plane(plane)
+        self.vis_open3d.add_planes(planes)
 

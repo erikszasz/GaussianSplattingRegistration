@@ -91,5 +91,5 @@ class DownsamplerController(BaseController):
         self.data_repository.first_plane_coefficients.clear()
         self.data_repository.second_plane_coefficients.clear()
         self.handle_mixture_results(result_data)
-        self.ui_repository.transformation_matrix = self.ui_repository.transformation_matrix  # TODO: Fix this
+        self.ui_repository.signal_transformation_changed.emit()
     # endregion

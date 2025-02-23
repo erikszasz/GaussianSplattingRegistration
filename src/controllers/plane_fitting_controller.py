@@ -1,3 +1,8 @@
+import copy
+
+import numpy as np
+import torch
+
 from controllers.base_controller import BaseController
 from gui.workers.downsampling.qt_plane_fitting import PlaneFittingWorker
 from models.data_repository import DataRepository
@@ -12,9 +17,9 @@ class PlaneFittingController(BaseController):
 
     # region Event handlers
     def fit_plane(self, params: PlaneFittingParams):
-        # TODO: Actually we should consider the point cloud after the transformation
-        pc1 = self.data_repository.pc_open3d_list_first[0]
+        pc1 = copy.deepcopy(self.data_repository.pc_open3d_list_first[0])
         pc2 = self.data_repository.pc_open3d_list_second[0]
+        pc1.transform(self.ui_repository.transformation_matrix)
 
         worker = PlaneFittingWorker(pc1, pc2, params.plane_count, params.iteration,
                                     params.distance_threshold, params.normal_threshold, params.min_distance)
@@ -33,14 +38,18 @@ class PlaneFittingController(BaseController):
 
     # region Result handlers
     def handle_fit_plane_result(self, result_data: PlaneFittingWorker.ResultData):
-        pc1 = self.data_repository.pc_gaussian_list_first[0]
-        pc2 = self.data_repository.pc_gaussian_list_second[0]
+        pc1 = copy.deepcopy(self.data_repository.pc_open3d_list_first[0])
+        pc2 = self.data_repository.pc_open3d_list_second[0]
+        pc1.transform(self.ui_repository.transformation_matrix)
+
+        points_tensor1 = torch.from_numpy(np.array(pc1.points, dtype=np.float32))
+        points_tensor2 = torch.from_numpy(np.array(pc2.points, dtype=np.float32))
 
         planes = []
         for i in range(len(result_data.coefficients_pc1)):
-            planes.append(get_o3d_plane(result_data.coefficients_pc1[i], pc1.get_xyz[result_data.indices_pc1[i]],
+            planes.append(get_o3d_plane(result_data.coefficients_pc1[i], points_tensor1[result_data.indices_pc1[i]],
                                         [0.1, 0.8, 0.1]))
-            planes.append(get_o3d_plane(result_data.coefficients_pc2[i], pc2.get_xyz[result_data.indices_pc2[i]],
+            planes.append(get_o3d_plane(result_data.coefficients_pc2[i], points_tensor2[result_data.indices_pc2[i]],
                                         [0.8, 0.1, 0.1]))
 
         self.data_repository.first_plane_indices = result_data.indices_pc1

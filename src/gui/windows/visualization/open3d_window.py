@@ -289,8 +289,15 @@ class Open3DWindow(ViewerInterface):
         height -= 10
         return Camera(R, T, fx, fy, "", width, height)
 
-    def add_plane(self, plane):
-        self.vis.add_geometry(plane)
+    def add_planes(self, planes):
+        ctr = self.vis.get_view_control()
+        camera_params = ctr.convert_to_pinhole_camera_parameters()
+
+        for plane in planes:
+            self.vis.add_geometry(plane)
+
+        self.vis.get_view_control().convert_from_pinhole_camera_parameters(camera_params)
+
 
     def paint_inliers(self, indices, color, pc_index):
         pc = self.pc1_copy if pc_index == 0 else self.pc2_copy
