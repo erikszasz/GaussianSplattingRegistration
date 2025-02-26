@@ -156,7 +156,6 @@ class RegistrationMainWindow(QMainWindow):
         plane_fitting_tab.signal_fit_plane.connect(self.plane_fitting_controller.fit_plane)
         plane_fitting_tab.signal_clear_plane.connect(self.clear_planes)
         plane_fitting_tab.signal_merge_plane.connect(self.downsampler_controller.merge_plane_inliers)
-        plane_fitting_tab.signal_error_message.connect(self.handle_error)
         plane_fitting_tab.signal_do_registration.connect(self.registration_controller.execute_local_registration_inlier)
         plane_fitting_tab.signal_do_fgr.connect(self.registration_controller.execute_fgr_registration_inlier)
         plane_fitting_tab.signal_do_ransac.connect(self.registration_controller.execute_ransac_registration_inlier)

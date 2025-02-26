@@ -40,7 +40,7 @@ class DownsamplerController(BaseController):
         thread.start()
         progress_dialog.exec()
 
-    def merge_plane_inliers(self):
+    def merge_plane_inliers(self, params: GaussianMixtureParams):
         pc1 = pc2 = None
 
         if len(self.data_repository.pc_gaussian_list_first) != 0 and len(
@@ -60,7 +60,8 @@ class DownsamplerController(BaseController):
 
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Plane inlier merging...")
         worker = PlaneInlierMergingWorker(pc1, pc2, self.data_repository.first_plane_indices,
-                                          self.data_repository.second_plane_indices)
+                                          self.data_repository.second_plane_indices,
+                                          params)
         thread = move_worker_to_thread(self, worker, self.handle_plane_merge_results,
                                        progress_handler=progress_dialog.setValue)
 

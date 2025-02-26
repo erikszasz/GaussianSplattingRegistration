@@ -2,6 +2,7 @@ import mixture_bind
 import numpy as np
 from PySide6 import QtWidgets
 
+from params.merge_parameters import GaussianMixtureParams
 from src.gui.workers.qt_base_worker import BaseWorker
 from src.models.gaussian_mixture_level import GaussianMixtureModel
 from src.models.gaussian_model import GaussianModel
@@ -63,14 +64,14 @@ class PlaneInlierMergingWorker(BaseWorker):
             self.list_open3d_first = list_open3d_first
             self.list_open3d_second = list_open3d_second
 
-    def __init__(self, pc1, pc2, first_plane_indices, second_plane_indices):
+    def __init__(self, pc1, pc2, first_plane_indices, second_plane_indices, params: GaussianMixtureParams):
         super().__init__()
 
-        self.hem_reduction = 3.0
-        self.distance_delta = 2.5
-        self.color_delta = 2.5
-        self.decay_rate = 1.0
-        self.cluster_level = 3
+        self.hem_reduction = params.hem_reduction
+        self.distance_delta = params.distance_delta
+        self.color_delta = params.color_delta
+        self.decay_rate = params.decay_rate
+        self.cluster_level = params.cluster_level
 
         self.first_plane_indices = first_plane_indices
         self.second_plane_indices = second_plane_indices

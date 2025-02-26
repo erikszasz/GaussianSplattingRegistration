@@ -2,22 +2,21 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QIntValidator, QDoubleValidator
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGroupBox, QFormLayout, QDialog, QTabWidget
 
+from gui.tabs.gaussian_mixture_tab import GaussianMixtureTab
 from gui.tabs.global_registration_tab import GlobalRegistrationTab
 from gui.tabs.local_registration_tab import LocalRegistrationTab
 from models.data_repository import DataRepository
+from params.merge_parameters import GaussianMixtureParams
 from params.plane_fitting_params import PlaneFittingParams
 from params.registration_parameters import FGRRegistrationParams, LocalRegistrationParams, RANSACRegistrationParams
 from src.gui.widgets.custom_push_button import CustomPushButton
 from src.gui.widgets.simple_input_field_widget import SimpleInputField
-from utils.global_registration_util import RANSACEstimationMethod
 
 
 class PlaneFittingTab(QWidget):
     signal_fit_plane = Signal(PlaneFittingParams)
     signal_clear_plane = Signal()
-    signal_merge_plane = Signal()
-
-    signal_error_message = Signal(str)
+    signal_merge_plane = Signal(GaussianMixtureParams)
 
     signal_do_ransac = Signal(RANSACRegistrationParams)
     signal_do_fgr = Signal(FGRRegistrationParams)
@@ -62,7 +61,7 @@ class PlaneFittingTab(QWidget):
         layout_plane_fitting.addRow(bt_clear_plane)
 
         bt_merge = CustomPushButton("Merge inliers", 90)
-        bt_merge.connect_to_clicked(self.signal_merge_plane.emit)
+        bt_merge.connect_to_clicked(self.create_merge_popup)
 
         bt_register = CustomPushButton("Register inliers", 90)
         bt_register.connect_to_clicked(self.create_register_popup)
@@ -92,10 +91,6 @@ class PlaneFittingTab(QWidget):
                                                       distance_threshold, normal_threshold, min_distance))
 
     def create_register_popup(self):
-        if not self.data_repository.first_plane_indices or not self.data_repository.second_plane_indices:
-            self.signal_error_message.emit("There are no inliers to register")
-            return
-
         self.popup = QDialog(self)
         self.popup.setModal(True)
         self.popup.setWindowTitle("Registration")
@@ -110,4 +105,14 @@ class PlaneFittingTab(QWidget):
         local_tab.signal_do_registration.connect(lambda *args: (self.popup.close(),
                                                                 self.signal_do_registration.emit(*args)))
         layout.addWidget(tab_widget)
+        self.popup.exec()
+
+    def create_merge_popup(self):
+        self.popup = QDialog(self)
+        self.popup.setModal(True)
+        self.popup.setWindowTitle("Gaussian Mixture")
+        layout = QVBoxLayout(self.popup)
+        mixture_tab = GaussianMixtureTab(False)
+        mixture_tab.signal_create_mixture.connect(lambda *args: (self.popup.close(), self.signal_merge_plane.emit(*args)))
+        layout.addWidget(mixture_tab)
         self.popup.exec()
