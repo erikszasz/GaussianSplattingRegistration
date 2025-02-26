@@ -1,7 +1,6 @@
 import math
 
 import numpy as np
-from PySide6.QtWidgets import QMessageBox
 
 from controllers.base_controller import BaseController
 from gui.widgets.progress_dialog_factory import ProgressDialogFactory
@@ -13,6 +12,7 @@ from gui.workers.registration.qt_multiscale_registrator import MultiScaleRegistr
 from gui.workers.registration.qt_ransac_registrator import RANSACRegistrator
 from models.data_repository import DataRepository
 from models.ui_state_repository import UIStateRepository
+from params.registration_parameters import LocalRegistrationParams, FGRRegistrationParams, RANSACRegistrationParams
 
 
 class RegistrationController(BaseController):
@@ -21,16 +21,22 @@ class RegistrationController(BaseController):
         super().__init__(data_repository, ui_repository)
 
     # region Event handlers
-    def execute_local_registration(self, registration_type, max_correspondence,
-                                   relative_fitness, relative_rmse, max_iteration, rejection_type, k_value):
-        pc1 = self.data_repository.pc_open3d_list_first[0]
-        pc2 = self.data_repository.pc_open3d_list_second[0]
-        init_trans = self.ui_repository.transformation_matrix
+    def execute_local_registration_normal(self, params: LocalRegistrationParams):
+        pc1 = self.data_repository.pc_open3d_list_first[self.data_repository.current_index]
+        pc2 = self.data_repository.pc_open3d_list_second[self.data_repository.current_index]
 
-        # Create worker for local registration
-        worker = LocalRegistrator(pc1, pc2, init_trans, registration_type, max_correspondence,
-                                  relative_fitness, relative_rmse, max_iteration, rejection_type,
-                                  k_value)
+        self._execute_local_registration(pc1, pc2, params)
+
+    def execute_local_registration_inlier(self, params: LocalRegistrationParams):
+        first_inlier_indices = np.concatenate(self.data_repository.first_plane_indices).tolist()
+        second_inlier_indices = np.concatenate(self.data_repository.second_plane_indices).tolist()
+        pc1 = self.data_repository.pc_open3d_list_first[0].select_by_index(first_inlier_indices)
+        pc2 = self.data_repository.pc_open3d_list_second[0].select_by_index(second_inlier_indices)
+
+        self._execute_local_registration(pc1, pc2, params)
+
+    def _execute_local_registration(self, pc1, pc2, registration_params: LocalRegistrationParams):
+        worker = LocalRegistrator(pc1, pc2, self.ui_repository.transformation_matrix, registration_params)
 
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
         thread = move_worker_to_thread(self, worker, self.handle_registration_result_local,
@@ -38,14 +44,22 @@ class RegistrationController(BaseController):
         thread.start()
         progress_dialog.exec()
 
-    def execute_ransac_registration(self, voxel_size, mutual_filter, max_correspondence, estimation_method,
-                                    ransac_n, checkers, max_iteration, confidence):
-        pc1 = self.data_repository.pc_open3d_list_first[0]
-        pc2 = self.data_repository.pc_open3d_list_second[0]
+    def execute_ransac_registration_normal(self, params: RANSACRegistrationParams):
+        pc1 = self.data_repository.pc_open3d_list_first[self.data_repository.current_index]
+        pc2 = self.data_repository.pc_open3d_list_second[self.data_repository.current_index]
 
-        worker = RANSACRegistrator(pc1, pc2, self.ui_repository.transformation_matrix,
-                                   voxel_size, mutual_filter, max_correspondence,
-                                   estimation_method, ransac_n, checkers, max_iteration, confidence)
+        self._execute_ransac_registration(pc1, pc2, params)
+
+    def execute_ransac_registration_inlier(self, params: RANSACRegistrationParams):
+        first_inlier_indices = np.concatenate(self.data_repository.first_plane_indices).tolist()
+        second_inlier_indices = np.concatenate(self.data_repository.second_plane_indices).tolist()
+        pc1 = self.data_repository.pc_open3d_list_first[0].select_by_index(first_inlier_indices)
+        pc2 = self.data_repository.pc_open3d_list_second[0].select_by_index(second_inlier_indices)
+
+        self._execute_ransac_registration(pc1, pc2, params)
+
+    def _execute_ransac_registration(self, pc1, pc2, params: RANSACRegistrationParams):
+        worker = RANSACRegistrator(pc1, pc2, self.ui_repository.transformation_matrix, params)
 
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
         thread = move_worker_to_thread(self, worker, self.handle_registration_result_global,
@@ -53,16 +67,22 @@ class RegistrationController(BaseController):
         thread.start()
         progress_dialog.exec()
 
-    def execute_fgr_registration(self, voxel_size, division_factor, use_absolute_scale, decrease_mu,
-                                 maximum_correspondence,
-                                 max_iterations, tuple_scale, max_tuple_count, tuple_test):
-        pc1 = self.data_repository.pc_open3d_list_first[0]
-        pc2 = self.data_repository.pc_open3d_list_second[0]
+    def execute_fgr_registration_normal(self, params: FGRRegistrationParams):
+        pc1 = self.data_repository.pc_open3d_list_first[self.data_repository.current_index]
+        pc2 = self.data_repository.pc_open3d_list_second[self.data_repository.current_index]
 
-        worker = FGRRegistrator(pc1, pc2, self.ui_repository.transformation_matrix,
-                                voxel_size, division_factor, use_absolute_scale, decrease_mu,
-                                maximum_correspondence,
-                                max_iterations, tuple_scale, max_tuple_count, tuple_test)
+        self._execute_fgr_registration(pc1, pc2, params)
+
+    def execute_fgr_registration_inlier(self, params: FGRRegistrationParams):
+        first_inlier_indices = np.concatenate(self.data_repository.first_plane_indices).tolist()
+        second_inlier_indices = np.concatenate(self.data_repository.second_plane_indices).tolist()
+        pc1 = self.data_repository.pc_open3d_list_first[0].select_by_index(first_inlier_indices)
+        pc2 = self.data_repository.pc_open3d_list_second[0].select_by_index(second_inlier_indices)
+
+        self._execute_fgr_registration(pc1, pc2, params)
+
+    def _execute_fgr_registration(self, pc1, pc2, params: FGRRegistrationParams):
+        worker = FGRRegistrator(pc1, pc2, self.ui_repository.transformation_matrix, params)
 
         progress_dialog = ProgressDialogFactory.get_progress_dialog("Loading", "Registering point clouds...")
         thread = move_worker_to_thread(self, worker, self.handle_registration_result_global,
@@ -135,9 +155,9 @@ class RegistrationController(BaseController):
         self.ui_repository.transformation_matrix = transformation
 
         title = "Successful registration"
-        message = f"The registration of the point clouds is finished.\n"\
-                  f'The transformation will be applied.\n\n'\
-                  f"Fitness: {fitness}\n"\
+        message = f"The registration of the point clouds is finished.\n" \
+                  f'The transformation will be applied.\n\n' \
+                  f"Fitness: {fitness}\n" \
                   f"RMSE: {inlier_rmse}\n"
 
         self.signal_success_message.emit(title, message, "")

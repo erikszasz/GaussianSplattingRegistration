@@ -53,7 +53,7 @@ class DownsamplerController(BaseController):
                                           "Please load two point clouds to create Gaussian mixtures.")
             return
 
-        if len(self.data_repository.planes) == 0:
+        if not self.data_repository.planes:
             self.signal_single_error.emit("There are no fitted planes to merge!"
                                           "Please run plane fitting to merge the inlier points.")
             return
@@ -90,6 +90,8 @@ class DownsamplerController(BaseController):
         self.data_repository.second_plane_indices.clear()
         self.data_repository.first_plane_coefficients.clear()
         self.data_repository.second_plane_coefficients.clear()
+        self.data_repository.planes = []  # To trigger the signal in the setter
         self.handle_mixture_results(result_data)
-        self.ui_repository.signal_transformation_changed.emit()
+        # Easiest way to force a transformation update for the new point clouds
+        self.ui_repository.signal_transformation_changed.emit(self.ui_repository.transformation_matrix)
     # endregion

@@ -1,5 +1,4 @@
-from PySide6 import QtCore
-from PySide6.QtCore import QLocale, QRegularExpression
+from PySide6.QtCore import QLocale, QRegularExpression, Signal
 from PySide6.QtGui import QDoubleValidator, QRegularExpressionValidator
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QComboBox, QSizePolicy, QFrame, QScrollArea, QFormLayout,
                                QGroupBox)
@@ -11,9 +10,9 @@ from src.utils.local_registration_util import LocalRegistrationType, KernelLossF
 
 
 class MultiScaleRegistrationTab(QWidget):
-    signal_do_registration = QtCore.Signal(bool, str, str, LocalRegistrationType, float, float,
-                                           list, list,
-                                           KernelLossFunctionType, float, bool)
+    signal_do_registration = Signal(bool, str, str, LocalRegistrationType, float, float,
+                                    list, list,
+                                    KernelLossFunctionType, float, bool)
 
     def __init__(self):
         super().__init__()

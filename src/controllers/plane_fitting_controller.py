@@ -32,7 +32,7 @@ class PlaneFittingController(BaseController):
         self.data_repository.second_plane_indices.clear()
         self.data_repository.first_plane_coefficients.clear()
         self.data_repository.second_plane_coefficients.clear()
-        self.data_repository.planes.clear()
+        self.data_repository.planes = []  # We need to do it this way to trigger the signal in the setter
 
     # endregion
 

@@ -133,11 +133,11 @@ class RegistrationMainWindow(QMainWindow):
 
         local_registration_widget = LocalRegistrationTab()
         local_registration_widget.signal_do_registration.connect(
-            self.registration_controller.execute_local_registration)
+            self.registration_controller.execute_local_registration_normal)
 
         global_registration_widget = GlobalRegistrationTab()
-        global_registration_widget.signal_do_ransac.connect(self.registration_controller.execute_ransac_registration)
-        global_registration_widget.signal_do_fgr.connect(self.registration_controller.execute_fgr_registration)
+        global_registration_widget.signal_do_ransac.connect(self.registration_controller.execute_ransac_registration_normal)
+        global_registration_widget.signal_do_fgr.connect(self.registration_controller.execute_fgr_registration_normal)
 
         multi_scale_registration_widget = MultiScaleRegistrationTab()
         multi_scale_registration_widget.signal_do_registration.connect(
@@ -152,10 +152,14 @@ class RegistrationMainWindow(QMainWindow):
         evaluator_widget.signal_camera_change.connect(self.visualizer_window.apply_camera_view)
         evaluator_widget.signal_evaluate_registration.connect(self.registration_controller.evaluate_registration)
 
-        plane_fitting_tab = PlaneFittingTab()
+        plane_fitting_tab = PlaneFittingTab(self.data_repository)
         plane_fitting_tab.signal_fit_plane.connect(self.plane_fitting_controller.fit_plane)
         plane_fitting_tab.signal_clear_plane.connect(self.clear_planes)
         plane_fitting_tab.signal_merge_plane.connect(self.downsampler_controller.merge_plane_inliers)
+        plane_fitting_tab.signal_error_message.connect(self.handle_error)
+        plane_fitting_tab.signal_do_registration.connect(self.registration_controller.execute_local_registration_inlier)
+        plane_fitting_tab.signal_do_fgr.connect(self.registration_controller.execute_fgr_registration_inlier)
+        plane_fitting_tab.signal_do_ransac.connect(self.registration_controller.execute_ransac_registration_inlier)
 
         registration_tab.addTab(global_registration_widget, "Global")
         registration_tab.addTab(local_registration_widget, "Local")

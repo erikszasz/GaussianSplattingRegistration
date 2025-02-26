@@ -73,13 +73,17 @@ def get_rejection_loss(rejection_type, k_value, registration_type):
             return o3d.pipelines.registration.HuberLoss(k_value)
 
 
-def do_icp_registration(point_cloud_first, point_cloud_second, init_transform, registration_type, max_correspondence,
-                        relative_fitness, relative_rmse, max_iteration, rejection_type, k_value):
-    loss_function = get_rejection_loss(rejection_type, k_value, registration_type)
-    estimation_method = get_estimation(registration_type, loss_function)
-    convergence_criteria = get_convergence_criteria(relative_fitness, relative_rmse, max_iteration)
+def do_icp_registration(point_cloud_first, point_cloud_second, init_transform,
+                        registration_params):
+    loss_function = get_rejection_loss(registration_params.rejection_type, registration_params.k_value,
+                                       registration_params.registration_type)
+    estimation_method = get_estimation(registration_params.registration_type, loss_function)
+    convergence_criteria = get_convergence_criteria(registration_params.relative_fitness,
+                                                    registration_params.relative_rmse,
+                                                    registration_params.max_iteration)
 
-    match registration_type:
+    max_correspondence = registration_params.max_correspondence
+    match registration_params.registration_type:
         case LocalRegistrationType.ICP_Point_To_Point | LocalRegistrationType.ICP_Point_To_Plane:
             return o3d.pipelines.registration.registration_icp(point_cloud_first, point_cloud_second,
                                                                max_correspondence, init_transform,
