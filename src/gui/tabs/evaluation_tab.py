@@ -6,7 +6,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QFileDialog, QGroupBox, QHBoxLayout,
                                QLabel, QSpinBox, QLineEdit, QErrorMessage, QCheckBox, QFormLayout)
 
-import src.utils.graphics_utils as graphic_util
 from src.gui.widgets.color_picker_widget import ColorPicker
 from src.gui.widgets.custom_push_button import CustomPushButton
 from src.gui.widgets.file_selector_widget import FileSelector

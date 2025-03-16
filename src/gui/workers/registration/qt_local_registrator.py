@@ -15,25 +15,16 @@ class LocalRegistrator(BaseWorker):
             self.result = result
             self.registration_data = registration_data
 
-    def __init__(self, pc1, pc2, init_trans, registration_type, max_correspondence,
-                 relative_fitness, relative_rmse, max_iteration, rejection_type, k_value):
+    def __init__(self, pc1, pc2, init_trans, params):
         super().__init__()
 
         self.pc1 = copy.deepcopy(pc1)
         self.pc2 = copy.deepcopy(pc2)
         self.init_trans = init_trans
-        self.registration_type = registration_type
-        self.max_correspondence = max_correspondence
-        self.relative_fitness = relative_fitness
-        self.relative_rmse = relative_rmse
-        self.max_iteration = max_iteration
-        self.rejection_type = rejection_type
-        self.k_value = k_value
+        self.registration_params = params
 
     def run(self):
-        results = do_icp_registration(self.pc1, self.pc2, self.init_trans, self.registration_type,
-                                      self.max_correspondence, self.relative_fitness,
-                                      self.relative_rmse, self.max_iteration, self.rejection_type, self.k_value)
+        results = do_icp_registration(self.pc1, self.pc2, self.init_trans, self.registration_params)
 
         dataclass = self.create_dataclass_object(results)
         self.signal_result.emit(LocalRegistrator.ResultData(results, dataclass))
@@ -41,9 +32,11 @@ class LocalRegistrator(BaseWorker):
         self.signal_finished.emit()
 
     def create_dataclass_object(self, results):
-        return LocalRegistrationData(registration_type=self.registration_type.instance_name,
+        return LocalRegistrationData(registration_type=self.registration_params.registration_type.instance_name,
                                      initial_transformation=self.init_trans,
-                                     relative_fitness=self.relative_fitness, relative_rmse=self.relative_rmse,
+                                     relative_fitness=self.registration_params.relative_fitness,
+                                     relative_rmse=self.registration_params.relative_rmse,
                                      result_fitness=results.fitness, result_inlier_rmse=results.inlier_rmse,
                                      result_transformation=results.transformation,
-                                     max_correspondence=self.max_correspondence, max_iteration=self.max_iteration)
+                                     max_correspondence=self.registration_params.max_correspondence,
+                                     max_iteration=self.registration_params.max_iteration)

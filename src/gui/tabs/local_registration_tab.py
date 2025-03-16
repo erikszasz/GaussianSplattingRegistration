@@ -3,14 +3,14 @@ from PySide6.QtGui import QDoubleValidator, QIntValidator
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QSizePolicy, \
     QComboBox, QScrollArea, QFrame, QFormLayout, QGroupBox, QStackedWidget, QLabel
 
+from params.registration_parameters import LocalRegistrationParams
 from src.gui.widgets.custom_push_button import CustomPushButton
 from src.gui.widgets.simple_input_field_widget import SimpleInputField
 from src.utils.local_registration_util import LocalRegistrationType, KernelLossFunctionType
 
 
 class LocalRegistrationTab(QWidget):
-    signal_do_registration = QtCore.Signal(LocalRegistrationType, float, float, float, int,
-                                           KernelLossFunctionType, float)
+    signal_do_registration = QtCore.Signal(LocalRegistrationParams)
 
     def __init__(self):
         super().__init__()
@@ -27,13 +27,16 @@ class LocalRegistrationTab(QWidget):
         layout = QVBoxLayout(inner_widget)
         scroll_widget.setWidget(inner_widget)
 
+        # Create registration params with default values
+        params = LocalRegistrationParams()
+
         self.combo_box_icp = QComboBox()
         self.combo_box_icp.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         for enum_member in LocalRegistrationType:
             self.combo_box_icp.addItem(enum_member.instance_name)
-
+        self.combo_box_icp.setCurrentIndex(params.registration_type.value)
         # Max correspondence
-        self.correspondence_widget = SimpleInputField("5.0", 60, double_validator)
+        self.correspondence_widget = SimpleInputField(str(params.max_correspondence), 60, double_validator)
 
         widget_local = QGroupBox()
         layout_local = QFormLayout(widget_local)
@@ -43,9 +46,9 @@ class LocalRegistrationTab(QWidget):
         # Relative fitness
         convergence_widget = QGroupBox("Convergence criteria")
         layout_convergence = QFormLayout(convergence_widget)
-        self.fitness_widget = SimpleInputField("0.000001", 60, double_validator)  # Relative fitness
-        self.rmse_widget = SimpleInputField("0.000001", 60, double_validator)  # Relative RMSE
-        self.iteration_widget = SimpleInputField("30", 60, int_validator)  # Max iterations
+        self.fitness_widget = SimpleInputField(str(params.relative_fitness), 60, double_validator)  # Relative fitness
+        self.rmse_widget = SimpleInputField(str(params.relative_rmse), 60, double_validator)  # Relative RMSE
+        self.iteration_widget = SimpleInputField(str(params.max_iteration), 60, int_validator)  # Max iterations
         layout_convergence.addRow("Relative fitness:", self.fitness_widget)
         layout_convergence.addRow("Relative RMSE:", self.rmse_widget)
         layout_convergence.addRow("Max iteration:", self.iteration_widget)
@@ -54,7 +57,7 @@ class LocalRegistrationTab(QWidget):
         outlier_widget = QGroupBox("Robust Kernel outlier rejection")
         outlier_layout = QFormLayout(outlier_widget)
 
-        self.k_value_widget = SimpleInputField("0.0", 60, validator=double_validator)
+        self.k_value_widget = SimpleInputField(str(params.k_value), 60, validator=double_validator)
         self.k_value_widget.setEnabled(False)
 
         self.combo_box_outlier = QComboBox()
@@ -62,6 +65,7 @@ class LocalRegistrationTab(QWidget):
         self.combo_box_outlier.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         for enum_member in KernelLossFunctionType:
             self.combo_box_outlier.addItem(enum_member.instance_name)
+        self.combo_box_icp.setCurrentIndex(params.rejection_type.value)
 
         outlier_layout.addRow("Loss type:", self.combo_box_outlier)
         outlier_layout.addRow("Standard deviation:", self.k_value_widget)
@@ -103,9 +107,9 @@ class LocalRegistrationTab(QWidget):
         max_iteration = int(self.iteration_widget.lineedit.text())
         rejection_type = KernelLossFunctionType(self.combo_box_outlier.currentIndex())
         k_value = float(self.k_value_widget.lineedit.text())
-        self.signal_do_registration.emit(registration_type,
-                                         max_correspondence, relative_fitness, relative_rmse, max_iteration,
-                                         rejection_type, k_value)
+        params = LocalRegistrationParams(registration_type, max_correspondence, relative_fitness, relative_rmse,
+                                         max_iteration, rejection_type, k_value)
+        self.signal_do_registration.emit(params)
 
     def rejection_type_changed(self, index):
         self.k_value_widget.setEnabled(index != 0)

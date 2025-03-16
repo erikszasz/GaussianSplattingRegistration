@@ -2,38 +2,33 @@ import numpy as np
 from PySide6 import QtCore
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator, QGuiApplication
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, \
-    QGridLayout, QLineEdit
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGridLayout, QLineEdit
 
+from models.ui_state_repository import UIStateRepository
 from src.gui.widgets.custom_push_button import CustomPushButton
 
 
 class Transformation3DPicker(QWidget):
     class MatrixCell(QLineEdit):
-        cell_number = 0
-
         value_changed = QtCore.Signal(int, int, float)
-        matrix_copied = QtCore.Signal(np.ndarray)
+        matrix_pasted = QtCore.Signal(np.ndarray)
 
-        def __init__(self, value=0.0):
+        def __init__(self, row, col, value=0.0):
             super().__init__()
-            double_validator = QDoubleValidator(-9999.0, 9999.0, 10)
-
-            self.row = int(Transformation3DPicker.MatrixCell.cell_number / 4)
-            self.col = self.cell_number % 4
-            Transformation3DPicker.MatrixCell.cell_number += 1
+            self.row = row
+            self.col = col
 
             self.setFixedSize(50, 50)
             self.setAlignment(Qt.AlignmentFlag.AlignLeft)
-            self.value = value
-            self.setText(str(self.value))
-            self.setValidator(double_validator)
+            self.setText(str(value))
+            self.setValidator(QDoubleValidator(-9999.0, 9999.0, 10))
+
             self.textEdited.connect(self.update_cell_value)
 
         def update_cell_value(self, text):
             try:
-                self.value = float(text)
-                self.value_changed.emit(self.row, self.col, self.value)
+                value = float(text)
+                self.value_changed.emit(self.row, self.col, value)
             except ValueError:
                 pass
 
@@ -44,16 +39,15 @@ class Transformation3DPicker(QWidget):
                 try:
                     text = text_original.replace("\n", "").replace("[", "").replace("]", "")
                     new_matrix = np.fromstring(text, dtype=np.float32, sep=',')
-                    self.matrix_copied.emit(new_matrix.reshape(4, 4))
+                    self.matrix_pasted.emit(new_matrix.reshape(4, 4))
                 except ValueError:
                     pass
 
             super().keyPressEvent(event)
 
-    transformation_matrix_changed = QtCore.Signal(object)
-
-    def __init__(self):
+    def __init__(self, ui_repository: UIStateRepository):
         super().__init__()
+        self.ui_repository = ui_repository
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -69,22 +63,21 @@ class Transformation3DPicker(QWidget):
 
         self.matrix_widget = QWidget()
         grid_layout = QGridLayout(self.matrix_widget)
-        self.transformation_matrix = np.array([[1, 0, 0, 0],
-                                               [0, 1, 0, 0],
-                                               [0, 0, 1, 0],
-                                               [0, 0, 0, 1]], dtype=float)
-
         self.cells = []
+
+        transformation_matrix = self.ui_repository.transformation_matrix
         for iRow in range(4):
+            row_cells = []
             for iCol in range(4):
-                cell = self.MatrixCell(self.transformation_matrix[iRow, iCol])
+                cell = self.MatrixCell(iRow, iCol, transformation_matrix[iRow, iCol])
                 cell.value_changed.connect(self.cell_value_changed)
-                cell.matrix_copied.connect(self.set_transformation)
+                cell.matrix_pasted.connect(self.set_transformation)
                 grid_layout.addWidget(cell, iRow, iCol)
-                self.cells.append(cell)
+                row_cells.append(cell)
+            self.cells.append(row_cells)
 
         button_reset = CustomPushButton("Reset transformation matrix", 90)
-        button_reset.connect_to_clicked(lambda: self.set_transformation(np.eye(4)))
+        button_reset.connect_to_clicked(self.reset_transformation)
 
         button_copy = CustomPushButton("Copy to clipboard", 90)
         button_copy.connect_to_clicked(self.copy_to_clipboard)
@@ -95,22 +88,30 @@ class Transformation3DPicker(QWidget):
         layout.addWidget(button_copy)
         layout.addStretch()
 
+        self.ui_repository.signal_transformation_changed.connect(self.update_matrix_display)
+
     def cell_value_changed(self, row, col, value):
-        self.transformation_matrix[row, col] = value
-        self.transformation_matrix_changed.emit(self.transformation_matrix)
+        transformation_matrix = self.ui_repository.transformation_matrix.copy()
+        transformation_matrix[row, col] = value
+        self.ui_repository.transformation_matrix = transformation_matrix  # Triggers signal
 
     def set_transformation(self, transformation_matrix):
-        for cell in self.cells:
-            self.transformation_matrix[cell.row][cell.col] = transformation_matrix[cell.row][cell.col]
-            value = transformation_matrix[cell.row][cell.col]
-            cell.setText(str(value))
-            cell.setCursorPosition(0)
-
-        self.transformation_matrix_changed.emit(self.transformation_matrix)
+        self.ui_repository.transformation_matrix = transformation_matrix  # Triggers signal
 
     def reset_transformation(self):
-        self.set_transformation(np.eye(4))
+        self.ui_repository.transformation_matrix = np.eye(4)  # Triggers signal
 
     def copy_to_clipboard(self):
         clipboard = QGuiApplication.clipboard()
-        clipboard.setText(str(self.transformation_matrix.tolist()))
+        clipboard.setText(str(self.ui_repository.transformation_matrix.tolist()))
+
+    def update_matrix_display(self, new_matrix):
+        for iRow in range(4):
+            for iCol in range(4):
+                value = new_matrix[iRow, iCol]
+                if float(self.cells[iRow][iCol].text()) == value:
+                    continue
+
+                self.cells[iRow][iCol].setText(str(value))
+                if not self.cells[iRow][iCol].hasFocus():
+                    self.cells[iRow][iCol].setCursorPosition(0)

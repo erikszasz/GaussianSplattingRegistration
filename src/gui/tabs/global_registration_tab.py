@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QComboBox, QWidget, QCheckBox
 from open3d.cpu.pybind.pipelines.registration import CorrespondenceCheckerBasedOnEdgeLength, \
     CorrespondenceCheckerBasedOnDistance, CorrespondenceCheckerBasedOnNormal
 
+from params.registration_parameters import FGRRegistrationParams, RANSACRegistrationParams
 from src.gui.widgets.custom_push_button import CustomPushButton
 from src.gui.widgets.optional_value_widget import OptionalInputField
 from src.gui.widgets.simple_input_field_widget import SimpleInputField
@@ -12,8 +13,8 @@ from src.utils.global_registration_util import GlobalRegistrationType, RANSACEst
 
 
 class GlobalRegistrationTab(QWidget):
-    signal_do_ransac = Signal(float, bool, float, RANSACEstimationMethod, int, list, int, float)
-    signal_do_fgr = Signal(float, float, bool, bool, float, int, float, int, bool)
+    signal_do_ransac = Signal(RANSACRegistrationParams)
+    signal_do_fgr = Signal(FGRRegistrationParams)
 
     def __init__(self):
         super().__init__()
@@ -113,16 +114,22 @@ class GlobalRegistrationTab(QWidget):
 
         options_widget = QGroupBox("Options")
         layout_options = QFormLayout(options_widget)
-        self.checkbox_mutual = QCheckBox()
 
-        self.max_correspondence_ransac_widget = SimpleInputField("5.0", validator=self.double_validator)
+        # Create RANSAC params class with default parameters
+        params = RANSACRegistrationParams()
+
+        self.checkbox_mutual = QCheckBox()
+        self.checkbox_mutual.setChecked(params.mutual_filter)
+
+        self.max_correspondence_ransac_widget = SimpleInputField(str(params.max_correspondence), validator=self.double_validator)
 
         self.combobox_estimation_method = QComboBox()
         self.combobox_estimation_method.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         for enum_member in RANSACEstimationMethod:
             self.combobox_estimation_method.addItem(enum_member.instance_name)
+        self.combobox_estimation_method.setCurrentIndex(params.estimation_method.value)
 
-        self.ransac_iteration_widget = SimpleInputField("3", validator=self.int_validator)
+        self.ransac_iteration_widget = SimpleInputField(str(params.ransac_n), validator=self.int_validator)
 
         layout_options.addRow("Estimation type:", self.combobox_estimation_method)
         layout_options.addRow("Maximum correspondence:", self.max_correspondence_ransac_widget)
@@ -143,8 +150,8 @@ class GlobalRegistrationTab(QWidget):
         # Convergence criteria
         convergence_widget = QGroupBox("Convergence criteria")
         layout_convergence = QFormLayout(convergence_widget)
-        self.confidence_widget = SimpleInputField("0.999", validator=self.double_validator)
-        self.max_iterations_ransac_widget = SimpleInputField("100000", validator=self.int_validator)
+        self.confidence_widget = SimpleInputField(str(params.confidence), validator=self.double_validator)
+        self.max_iterations_ransac_widget = SimpleInputField(str(params.max_iteration), validator=self.int_validator)
         layout_convergence.addRow("Confidence:", self.confidence_widget)
         layout_convergence.addRow("Max iterations:", self.max_iterations_ransac_widget)
 
@@ -159,16 +166,22 @@ class GlobalRegistrationTab(QWidget):
         widget_options.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         layout_options = QFormLayout(widget_options)
 
-        self.division_factor_widget = SimpleInputField("1.4", validator=self.double_validator)
+        # Create FGR params with default arguments
+        params = FGRRegistrationParams()
+
+        self.division_factor_widget = SimpleInputField(str(params.division_factor), validator=self.double_validator)
         self.checkbox_use_absolute_scale = QCheckBox()
+        self.checkbox_use_absolute_scale.setChecked(params.use_absolute_scale)
         self.checkbox_decrease_mu = QCheckBox()
-        self.maximum_correspondence_fgr_widget = SimpleInputField("0.025", validator=self.double_validator)
-        self.max_iterations_fgr_widget = SimpleInputField("64", validator=self.int_validator)
-        self.tuple_scale_widget = SimpleInputField("0.95", validator=self.double_validator)
-        self.max_tuple_count_widget = SimpleInputField("1000", validator=self.int_validator)
+        self.checkbox_decrease_mu.setChecked(params.decrease_mu)
+        self.maximum_correspondence_fgr_widget = SimpleInputField(str(params.maximum_correspondence),
+                                                                  validator=self.double_validator)
+        self.max_iterations_fgr_widget = SimpleInputField(str(params.max_iterations), validator=self.int_validator)
+        self.tuple_scale_widget = SimpleInputField(str(params.tuple_scale), validator=self.double_validator)
+        self.max_tuple_count_widget = SimpleInputField(str(params.max_tuple_count), validator=self.int_validator)
 
         self.checkbox_tuple_test = QCheckBox()
-        self.checkbox_tuple_test.setChecked(True)
+        self.checkbox_tuple_test.setChecked(params.tuple_test)
 
         layout_options.addRow("Division factor:", self.division_factor_widget)
         layout_options.addRow("Use absolute scale:", self.checkbox_use_absolute_scale)
@@ -204,8 +217,9 @@ class GlobalRegistrationTab(QWidget):
         checkers = self.get_ransac_checkers_list()
         max_iteration = int(self.max_iterations_ransac_widget.lineedit.text())
         confidence = float(self.confidence_widget.lineedit.text())
-        self.signal_do_ransac.emit(voxel_size, mutual_filter, max_correspondence, estimation_method,
-                                   ransac_n, checkers, max_iteration, confidence)
+        params = RANSACRegistrationParams(voxel_size, mutual_filter, max_correspondence, estimation_method,
+                                          ransac_n, checkers, max_iteration, confidence)
+        self.signal_do_ransac.emit(params)
 
     def emit_fgr_signal(self):
         voxel_size = float(self.voxel_size_widget.lineedit.text())
@@ -217,9 +231,10 @@ class GlobalRegistrationTab(QWidget):
         tuple_scale = float(self.tuple_scale_widget.lineedit.text())
         max_tuple_count = int(self.max_tuple_count_widget.lineedit.text())
         tuple_test = self.checkbox_tuple_test.isChecked()
-
-        self.signal_do_fgr.emit(voxel_size, division_factor, use_absolute_scale, decrease_mu, maximum_correspondence,
-                                max_iterations, tuple_scale, max_tuple_count, tuple_test)
+        params = FGRRegistrationParams(voxel_size, division_factor, use_absolute_scale, decrease_mu,
+                                       maximum_correspondence,
+                                       max_iterations, tuple_scale, max_tuple_count, tuple_test)
+        self.signal_do_fgr.emit(params)
 
     def get_ransac_checkers_list(self):
         checkers = []

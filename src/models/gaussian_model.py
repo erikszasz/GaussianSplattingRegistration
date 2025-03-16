@@ -15,7 +15,7 @@ from plyfile import PlyElement, PlyData
 
 from src.models.gaussian_mixture_level import GaussianMixtureModel
 from src.utils.general_utils import build_scaling_rotation, strip_symmetric, \
-    inverse_sigmoid, build_rotation, matrices_to_quaternions, rebuild_lowerdiag, matrix_to_quaternion
+    inverse_sigmoid, matrices_to_quaternions, rebuild_lowerdiag, matrix_to_quaternion
 
 
 class GaussianModel:
@@ -267,8 +267,10 @@ class GaussianModel:
         gaussian1_copy = gaussian1
 
         # If the transformation matrix is not an identity matrix
-        if transformation_matrix is not None and not np.array_equal(transformation_matrix, np.eye(transformation_matrix.shape[0])):
-            transformation_matrix_tensor = torch.from_numpy(transformation_matrix.astype(np.float32)).to(gaussian1.device_name)
+        if (transformation_matrix is not None and
+                not np.array_equal(transformation_matrix, np.eye(transformation_matrix.shape[0]))):
+            transformation_matrix_tensor = (torch.from_numpy(transformation_matrix.astype(np.float32))
+                                            .to(gaussian1.device_name))
             gaussian1_copy = gaussian1.clone_gaussian()
             gaussian1_copy.transform_gaussian_model(transformation_matrix_tensor)
 

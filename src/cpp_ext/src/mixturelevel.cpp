@@ -31,19 +31,34 @@ namespace hem
     {
         py::list xyz;
         for (const auto& point : mixtureLevel.pointSet) {
-            xyz.append(py::make_tuple(point.x, point.y, point.z));
+            py::list point_list;
+            point_list.append(point.x);
+            point_list.append(point.y);
+            point_list.append(point.z);
+            xyz.append(point_list);
         }
 
         py::list colors;
         for (const auto& color : mixtureLevel.colorSet) {
-            colors.append(py::make_tuple(color.x, color.y, color.z));
+            py::list color_list;
+            color_list.append(color.x);
+            color_list.append(color.y);
+            color_list.append(color.z);
+            colors.append(color_list);
         }
 
         py::list opacities = py::cast(mixtureLevel.opacities);
 
         py::list covariance;
         for (const auto& cov : mixtureLevel.covarianceSet) {
-            covariance.append(py::make_tuple(cov.e00, cov.e01, cov.e02, cov.e11, cov.e12, cov.e22));
+            py::list cov_list;
+            cov_list.append(cov.e00);
+            cov_list.append(cov.e01);
+            cov_list.append(cov.e02);
+            cov_list.append(cov.e11);
+            cov_list.append(cov.e12);
+            cov_list.append(cov.e22);
+            covariance.append(cov_list);
         }
 
         py::list features;

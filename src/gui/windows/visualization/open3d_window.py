@@ -5,9 +5,9 @@ from subprocess import Popen, PIPE
 import numpy as np
 import open3d as o3d
 from PySide6 import QtWidgets, QtCore
-from PySide6.QtWidgets import QMainWindow, QWidget, QScrollBar
 
 from gui.windows.visualization.viewer_interface import ViewerInterface
+from params.io_parameters import PointCloudState
 from src.models.camera import Camera
 from src.utils.graphics_utils import get_focal_from_intrinsics, get_dimension_from_intrinsics
 
@@ -62,30 +62,29 @@ class Open3DWindow(ViewerInterface):
         self.vis.poll_events()
         self.vis.update_renderer()
 
-    def load_point_clouds(self, point_cloud_first, point_cloud_second, keep_view=False,
-                          transformation_matrix=None, debug_color1=None, debug_color2=None):
-        self.pc1 = point_cloud_first
-        self.pc2 = point_cloud_second
+    def load_point_clouds(self, params: PointCloudState):
+        self.pc1 = params.o3d_pc1
+        self.pc2 = params.o3d_pc2
         self.pc1_copy = copy.deepcopy(self.pc1)
         self.pc2_copy = copy.deepcopy(self.pc2)
 
         camera_params = None
-        if keep_view:
+        if params.keep_view:
             ctr = self.vis.get_view_control()
             camera_params = ctr.convert_to_pinhole_camera_parameters()
 
-        if debug_color1 is not None and debug_color2 is not None:
-            self.pc1_copy.paint_uniform_color(debug_color1)
-            self.pc2_copy.paint_uniform_color(debug_color2)
+        if params.debug_color1 is not None and params.debug_color2 is not None:
+            self.pc1_copy.paint_uniform_color(params.debug_color1)
+            self.pc2_copy.paint_uniform_color(params.debug_color2)
 
-        if transformation_matrix is not None:
-            self.pc1_copy.transform(transformation_matrix)
+        if params.transformation_matrix is not None:
+            self.pc1_copy.transform(params.transformation_matrix)
 
         self.vis.clear_geometries()
         self.vis.add_geometry(self.pc1_copy)
         self.vis.add_geometry(self.pc2_copy)
 
-        if keep_view and camera_params is not None:
+        if params.keep_view and camera_params is not None:
             self.vis.get_view_control().convert_from_pinhole_camera_parameters(camera_params)
 
     def closeEvent(self, event):
@@ -289,3 +288,25 @@ class Open3DWindow(ViewerInterface):
         width -= 10
         height -= 10
         return Camera(R, T, fx, fy, "", width, height)
+
+    def add_planes(self, planes):
+        ctr = self.vis.get_view_control()
+        camera_params = ctr.convert_to_pinhole_camera_parameters()
+
+        for plane in planes:
+            self.vis.add_geometry(plane)
+
+        self.vis.get_view_control().convert_from_pinhole_camera_parameters(camera_params)
+
+
+    def paint_inliers(self, indices, color, pc_index):
+        pc = self.pc1_copy if pc_index == 0 else self.pc2_copy
+        colors = np.asarray(pc.colors)
+        for idx in indices:
+            colors[idx] = color
+
+        # Update the colors in the point cloud
+        pc.colors = o3d.utility.Vector3dVector(colors)
+
+        # Visualize the point cloud
+        self.vis.update_geometry(pc)

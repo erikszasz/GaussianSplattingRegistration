@@ -1,10 +1,10 @@
 import torch
 from PySide6 import QtWidgets
 from PySide6.QtWidgets import QWidget, QStackedWidget
-import open3d as o3d
 
-from src.gui.windows.visualization.rasterization_window import GaussianSplatWindow
+from params.io_parameters import PointCloudState
 from src.gui.windows.visualization.open3d_window import Open3DWindow
+from src.gui.windows.visualization.rasterization_window import GaussianSplatWindow
 
 
 class VisualizerWindow(QWidget):
@@ -38,23 +38,24 @@ class VisualizerWindow(QWidget):
 
         return self.vis_3dgs.get_camera_model()
 
-    def load_point_clouds(self, o3d_pc1, o3d_pc2, gauss_pc1=None, gauss_pc2=None, keep_view=False,
-                          transformation_matrix=None, debug_color1=None, debug_color2=None):
-        self.o3d_pc1 = o3d_pc1
-        self.o3d_pc2 = o3d_pc2
-        self.gauss_pc1 = gauss_pc1
-        self.gauss_pc2 = gauss_pc2
+    def load_point_clouds(self, params: PointCloudState):
+        self.o3d_pc1 = params.o3d_pc1
+        self.o3d_pc2 = params.o3d_pc2
+        self.gauss_pc1 = params.gauss_pc1
+        self.gauss_pc2 = params.gauss_pc2
 
         self.vis_open3d.set_active(False)
         self.vis_3dgs.set_active(False)
 
-        self.vis_open3d.load_point_clouds(o3d_pc1, o3d_pc2, keep_view, transformation_matrix, debug_color1,
-                                          debug_color2)
+        self.vis_open3d.load_point_clouds(params)
 
-        if gauss_pc1 is not None:
-            self.vis_3dgs.load_point_clouds(gauss_pc1, gauss_pc2, transformation_matrix)
+        if self.gauss_pc1 is not None:
+            self.vis_3dgs.load_point_clouds(params)
 
         self.vis_open3d.set_active(True) if self.vis_stack.currentIndex() == 0 else self.vis_3dgs.set_active(True)
+
+        if params.reset_view_point:
+            self.reset_view_point()
 
     def on_embed_button_pressed(self):
         if self.vis_stack.currentIndex() == 0:
@@ -142,3 +143,11 @@ class VisualizerWindow(QWidget):
             return
 
         self.vis_3dgs.set_active(True)
+
+    def add_planes(self, planes):
+        # TODO: Visualize plane in raster mode. Do we even need that?
+        if self.vis_stack.currentIndex() != 0:
+            return
+
+        self.vis_open3d.add_planes(planes)
+

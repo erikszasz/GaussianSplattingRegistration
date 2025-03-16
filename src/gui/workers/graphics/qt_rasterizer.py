@@ -1,12 +1,7 @@
-import numpy as np
 import torch
-from PIL import Image
-from PySide6 import QtGui
 
 from src.gui.workers.qt_base_worker import BaseWorker
-from src.models.camera import Camera
 from src.models.gaussian_model import GaussianModel
-from src.utils.graphics_utils import focal2fov, get_focal_from_intrinsics
 from src.utils.rasterization_util import rasterize_image, get_pixmap_from_tensor
 
 

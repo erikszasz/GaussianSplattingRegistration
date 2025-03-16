@@ -8,7 +8,7 @@ from PySide6 import QtWidgets
 
 from src.gui.workers.qt_base_worker import BaseWorker
 from src.models.gaussian_model import GaussianModel
-import lpips
+from lpips import LPIPS
 from src.utils.evaluation_utils import ssim, psnr, mse
 from src.utils.rasterization_util import rasterize_image
 
@@ -47,6 +47,7 @@ class RegistrationEvaluator(BaseWorker):
     def run(self):
         point_cloud = GaussianModel.get_merged_gaussian_point_clouds(self.pc1, self.pc2, self.transformation)
         point_cloud.move_to_device(self.device)
+        lpips_loss = LPIPS(net='alex').to(self.device)
 
         error_list = []
         mses = []
@@ -79,19 +80,18 @@ class RegistrationEvaluator(BaseWorker):
                 continue
 
             try:
-                image_tensor = rasterize_image(point_cloud, camera, 1, self.color, self.device, self.use_gpu)
+                image_tensor = (rasterize_image(point_cloud, camera, 1, self.color, self.device, self.use_gpu)
+                                .permute(0, 3, 1, 2))
             except (OSError, IOError) as e:
                 error_list.append(str(e))
                 continue
-
-            image_tensor = image_tensor.unsqueeze(0)
 
             current_mse = mse(image_tensor, gt_image)
             mses.append(current_mse)
             rmses.append(torch.sqrt(current_mse))
             ssims.append(ssim(image_tensor, gt_image))
             psnrs.append(psnr(image_tensor, gt_image))
-            lpipss.append(lpips(image_tensor, gt_image))
+            lpipss.append(lpips_loss(image_tensor, gt_image))
 
             del image_tensor, gt_image
             torch.cuda.empty_cache()

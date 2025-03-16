@@ -1,12 +1,11 @@
 # From: https://www.pythonguis.com/tutorials/pyside6-animated-widgets/
 
 from PySide6.QtCore import (
-    Qt, QSize, QPoint, QPointF, QRectF,
+    QSize, QPoint, QPointF, QRectF,
     QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup,
     Slot, Property)
-
-from PySide6.QtWidgets import QCheckBox
 from PySide6.QtGui import QColor, QBrush, QPaintEvent, QPen, QPainter, QColorConstants
+from PySide6.QtWidgets import QCheckBox
 
 
 class AnimatedToggle(QCheckBox):
@@ -34,7 +33,7 @@ class AnimatedToggle(QCheckBox):
         self._pulse_unchecked_animation = QBrush(QColor(pulse_unchecked_color))
         self._pulse_checked_animation = QBrush(QColor(pulse_checked_color))
 
-        # Setup the rest of the widget.
+        # Set up the rest of the widget.
 
         self.setContentsMargins(8, 5, 8, 0)
         self._handle_position = 0
