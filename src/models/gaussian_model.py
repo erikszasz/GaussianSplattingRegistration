@@ -20,8 +20,8 @@ from src.utils.general_utils import build_scaling_rotation, strip_symmetric, \
 
 class GaussianModel:
 
-    def __init__(self, sh_degree: int = 3, device_name="cpu"):
-        self.sh_degree = sh_degree
+    def __init__(self, device_name="cpu"):
+        self.sh_degree = -1
         self.device_name = device_name
         self._xyz = torch.empty(0)
         self._features_dc = torch.empty(0)
@@ -108,7 +108,8 @@ class GaussianModel:
 
         extra_f_names = [p.name for p in plydata.elements[0].properties if p.name.startswith("f_rest_")]
         extra_f_names = sorted(extra_f_names, key=lambda x: int(x.split('_')[-1]))
-        assert len(extra_f_names) == 3 * (self.sh_degree + 1) ** 2 - 3
+        sh_length = len(extra_f_names)
+        self.sh_degree = int(((sh_length + 3) / 3) ** 0.5 - 1)
         features_extra = np.zeros((xyz.shape[0], len(extra_f_names)))
         for idx, attr_name in enumerate(extra_f_names):
             features_extra[:, idx] = np.asarray(plydata.elements[0][attr_name])
@@ -137,7 +138,8 @@ class GaussianModel:
         self._rotation = torch.tensor(rots, dtype=torch.float, device=self.device_name)
         self._covariance = self.covariance_activation(self.get_scaling, 1.0, self._rotation)
 
-    def from_mixture(self, gaussian_mixture: GaussianMixtureModel):
+    def from_mixture(self, gaussian_mixture: GaussianMixtureModel, sh_degree: int):
+        self.sh_degree = sh_degree
         self._xyz = torch.tensor(gaussian_mixture.xyz, dtype=torch.float, device=self.device_name)
         self._features_dc = (torch.tensor(gaussian_mixture.colors, dtype=torch.float, device=self.device_name)
                              .view(-1, 1, 3))
@@ -183,7 +185,8 @@ class GaussianModel:
         plydata.write(path)
 
     def clone_gaussian(self):
-        new_model = GaussianModel(3)
+        new_model = GaussianModel()
+        new_model.sh_degree = self.sh_degree
         new_model._covariance = self._covariance.clone().detach()
         new_model._xyz = self._xyz.clone().detach()
         new_model._rotation = self._rotation.clone().detach()
@@ -263,7 +266,7 @@ class GaussianModel:
 
     @staticmethod
     def get_merged_gaussian_point_clouds(gaussian1, gaussian2, transformation_matrix):
-        merged_pc = GaussianModel(3)
+        merged_pc = GaussianModel()
         gaussian1_copy = gaussian1
 
         # If the transformation matrix is not an identity matrix
@@ -274,6 +277,8 @@ class GaussianModel:
             gaussian1_copy = gaussian1.clone_gaussian()
             gaussian1_copy.transform_gaussian_model(transformation_matrix_tensor)
 
+        assert gaussian1.sh_degree == gaussian2.sh_degree
+        merged_pc.sh_degree = gaussian1.sh_degree
         merged_pc._xyz = torch.cat((gaussian1_copy._xyz, gaussian2._xyz))
         merged_pc._rotation = torch.cat((gaussian1_copy._rotation, gaussian2._rotation))
         merged_pc._scaling = torch.cat((gaussian1_copy._scaling, gaussian2._scaling))

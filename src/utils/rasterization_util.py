@@ -21,7 +21,7 @@ def rasterize_image(point_cloud: GaussianModel, camera, scale, color, device, le
         camera.width,
         camera.height,
         render_mode="RGB",
-        sh_degree=3,
+        sh_degree=point_cloud.sh_degree,
         backgrounds=color_tensor,
         covars=covars,
         packed=True,

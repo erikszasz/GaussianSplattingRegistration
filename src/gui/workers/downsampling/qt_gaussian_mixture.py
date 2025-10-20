@@ -91,10 +91,11 @@ class GaussianMixtureWorker(BaseWorker):
         list_open3d_first = []
         list_open3d_second = []
 
+        sh_degree = self.gaussian_pc_first.sh_degree
         for mixture in mixture_models_first:
             mixture_model = GaussianMixtureModel(*mixture_bind.MixtureLevel.CreatePythonLists(mixture))
             gaussian = GaussianModel(device_name="cuda:0")
-            gaussian.from_mixture(mixture_model)
+            gaussian.from_mixture(mixture_model, sh_degree)
             gaussian.move_to_device("cpu")
 
             result_open3d = convert_gs_to_open3d_pc(gaussian)
@@ -106,7 +107,7 @@ class GaussianMixtureWorker(BaseWorker):
         for mixture in mixture_models_second:
             mixture_model = GaussianMixtureModel(*mixture_bind.MixtureLevel.CreatePythonLists(mixture))
             gaussian = GaussianModel(device_name="cuda:0")
-            gaussian.from_mixture(mixture_model)
+            gaussian.from_mixture(mixture_model, sh_degree)
             gaussian.move_to_device("cpu")
 
             result_open3d = convert_gs_to_open3d_pc(gaussian)

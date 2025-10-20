@@ -31,7 +31,8 @@ class PointCloudIOController(BaseController):
         worker = PointCloudLoaderGaussian(params.first_path, params.second_path)
         thread = move_worker_to_thread(self, worker,
                                        lambda result: self.handle_result_gaussian(result, params.save_converted),
-                                       progress_handler=progress_dialog.setValue)
+                                       progress_handler=progress_dialog.setValue,
+                                       error_handler=self.throw_single_error)
         thread.start()
         progress_dialog.exec()
 
@@ -85,6 +86,10 @@ class PointCloudIOController(BaseController):
         self.handle_result_base(sparse_result.point_cloud_first, sparse_result.point_cloud_second)
 
     def handle_result_gaussian(self, gaussian_result: PointCloudLoaderGaussian.ResultData, save_o3d_point_clouds):
+        if gaussian_result.gaussian_point_cloud_first.sh_degree != gaussian_result.gaussian_point_cloud_second.sh_degree:
+            self.throw_single_error("The selected point clouds have different sh degrees.")
+            return
+
         self.handle_result_base(gaussian_result.o3d_point_cloud_first, gaussian_result.o3d_point_cloud_second,
                                 gaussian_result.gaussian_point_cloud_first,
                                 gaussian_result.gaussian_point_cloud_second)

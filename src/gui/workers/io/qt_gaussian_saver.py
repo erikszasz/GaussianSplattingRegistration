@@ -12,6 +12,13 @@ class GaussianSaverBase(BaseWorker):
         self.path = path
 
     def merge_and_save(self, pc_first, pc_second):
+        if pc_first.sh_degree != pc_second.sh_degree:
+            self.signal_error.emit(
+                ["The selected point clouds have different sh degrees."])
+            self.signal_progress.emit(100)
+            self.signal_finished.emit()
+            return
+
         merged = GaussianModel.get_merged_gaussian_point_clouds(pc_first, pc_second,
                                                                 self.transformation)
         torch.cuda.empty_cache()
@@ -51,8 +58,8 @@ class GaussianSaverUseCorresponding(GaussianSaverBase):
             self.signal_finished.emit()
             return
 
-        pc_first = GaussianModel(3)
-        pc_second = GaussianModel(3)
+        pc_first = GaussianModel()
+        pc_second = GaussianModel()
         pc_first.from_ply(pc_first_ply)
         pc_second.from_ply(pc_second_ply)
 
